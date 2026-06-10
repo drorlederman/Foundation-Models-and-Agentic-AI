@@ -1,0 +1,52 @@
+% tikz/attention_head.tex
+% Scaled dot-product attention diagram
+% Usage: \input{../../tikz/attention_head}
+\begin{tikzpicture}[
+  node distance=0.7cm and 1.0cm,
+  box/.style={rectangle, draw=hitblue, fill=hitlightblue, rounded corners=2pt,
+              minimum width=1.6cm, minimum height=0.55cm, font=\small, align=center},
+  op/.style={circle, draw=hitgold, fill=hitgold!20,
+             minimum size=0.55cm, font=\small\bfseries},
+  arr/.style={->, >=Stealth, thick, hitblue},
+]
+
+% Input nodes
+\node[box] (Q) {$\query$};
+\node[box, right=1.6cm of Q] (K) {$\key$};
+\node[box, right=1.6cm of K] (V) {$\val$};
+
+% MatMul QK^T
+\node[op, below=0.8cm of $(Q)!0.5!(K)$] (matmul1) {$\times$};
+
+% Scale
+\node[box, below=0.7cm of matmul1] (scale) {Scale $\frac{1}{\sqrt{\dk}}$};
+
+% Mask (optional)
+\node[box, below=0.7cm of scale, dashed, draw=gray, fill=gray!8, font=\small\itshape]
+  (mask) {Mask (opt.)};
+
+% Softmax
+\node[box, below=0.7cm of mask] (sm) {Softmax};
+
+% MatMul with V
+\node[op, below=0.8cm of $(sm)!0.5!(V)+(1.6cm,0)$] (matmul2) {$\times$};
+
+% Output
+\node[box, below=0.7cm of matmul2] (out) {\textbf{Output}};
+
+% Arrows
+\draw[arr] (Q.south) -- ++(0,-0.3) -| (matmul1.north west);
+\draw[arr] (K.south) -- ++(0,-0.3) -| (matmul1.north east);
+\draw[arr] (matmul1) -- (scale);
+\draw[arr] (scale) -- (mask);
+\draw[arr] (mask) -- (sm);
+\draw[arr] (sm.south) -- ++(0,-0.3) -| (matmul2.north west);
+\draw[arr] (V.south) -- ++(0,-2.9) -| (matmul2.north east);
+\draw[arr] (matmul2) -- (out);
+
+% Label
+\node[font=\footnotesize\itshape, gray, above=0.05cm of Q] {Queries};
+\node[font=\footnotesize\itshape, gray, above=0.05cm of K] {Keys};
+\node[font=\footnotesize\itshape, gray, above=0.05cm of V] {Values};
+
+\end{tikzpicture}

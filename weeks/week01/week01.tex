@@ -1,0 +1,344 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+\input{../../shared/preamble}
+
+\title{Week 1: From Deep Learning to Foundation Models}
+\subtitle{Foundation Models and Agentic AI}
+\author{Lecturer Name}
+\institute{Holon Institute of Technology (HIT)}
+\date{Semester, 2025}
+
+\begin{document}
+
+% ── Title slide ───────────────────────────────────────────────────────────────
+\begin{frame}
+  \titlepage
+\end{frame}
+
+% ── Learning objectives ───────────────────────────────────────────────────────
+\begin{frame}{Learning Objectives}
+  After this lecture you will be able to:
+  \begin{itemize}
+    \item Explain the concept of \textbf{transfer learning} and why it transformed NLP.
+    \item Describe neural \textbf{scaling laws} and what they predict about model performance.
+    \item Define and give examples of \textbf{emergent capabilities} in large models.
+    \item Articulate the \textbf{foundation model paradigm} and how it differs from task-specific modeling.
+    \item Identify key \textbf{opportunities and risks} associated with foundation models.
+  \end{itemize}
+\end{frame}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{From Task-Specific Models to Transfer Learning}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\sectionframe{From Task-Specific to Transfer Learning}{How the field moved from bespoke models to shared representations}
+
+\begin{frame}{The Pre-Transfer Learning Era}
+  \begin{columns}[T]
+    \column{0.48\textwidth}
+      \textbf{Classic ML pipeline}
+      \begin{itemize}
+        \item Hand-craft features (TF-IDF, n-grams)
+        \item Train a task-specific classifier
+        \item Repeat for every new task
+      \end{itemize}
+      \vspace{0.5em}
+      \textbf{Problems:}
+      \begin{itemize}
+        \item No knowledge sharing across tasks
+        \item Requires large labeled datasets per task
+        \item Feature engineering is brittle
+      \end{itemize}
+    \column{0.48\textwidth}
+      \placeholder{0.9\textwidth}{3.5cm}{Classic NLP pipeline: features → classifier per task}
+  \end{columns}
+  \note{Remind students of their NLP course. Ask: how did we handle sentiment analysis vs NER before 2018?}
+\end{frame}
+
+\begin{frame}{Transfer Learning in Computer Vision}
+  \begin{itemize}
+    \item \textbf{ImageNet pre-training} (2012): AlexNet learned general visual features.
+    \item Fine-tuning: freeze early layers, retrain head on target task.
+    \item Demonstrated that \emph{features transfer} across tasks.
+  \end{itemize}
+  \vspace{0.5em}
+  \begin{tcolorbox}[hitbox, title=Key Insight]
+    Layers in deep networks learn increasingly \textbf{abstract, task-agnostic representations}.
+    Early layers $\approx$ task-agnostic; later layers $\approx$ task-specific.
+  \end{tcolorbox}
+  \vspace{0.3em}
+  \textbf{Question:} Can the same idea work for language?
+  \note{This motivates BERT / GPT. The answer was yes, but it required rethinking the pretraining objective.}
+\end{frame}
+
+\begin{frame}{Transfer Learning Comes to NLP}
+  \begin{columns}[T]
+    \column{0.55\textwidth}
+      \textbf{Key milestones:}
+      \begin{enumerate}
+        \item \textbf{Word2Vec / GloVe} (2013–2014): static word embeddings
+        \item \textbf{ELMo} (2018): contextualized embeddings from LSTMs
+        \item \textbf{BERT} (2019): deep bidirectional transformer, fine-tune on downstream tasks~\cite{devlin2019bert}
+        \item \textbf{GPT} (2018–2019): left-to-right language model, zero/few-shot~\cite{radford2019gpt2}
+      \end{enumerate}
+    \column{0.40\textwidth}
+      \placeholder{0.95\textwidth}{4cm}{Transfer learning timeline in NLP}
+  \end{columns}
+  \note{Emphasize the paradigm shift: the same pretrained model, minimal changes → many tasks.}
+\end{frame}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Scaling Laws}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\sectionframe{Neural Scaling Laws}{What happens when you make models bigger?}
+
+\begin{frame}{Scaling Laws: Empirical Findings}
+  \textbf{Kaplan et al.\ (2020)}~\cite{kaplan2020scaling} showed that language model loss follows
+  \emph{power laws} in three dimensions:
+  \vspace{0.4em}
+  \begin{columns}[T]
+    \column{0.52\textwidth}
+      \begin{enumerate}
+        \item \textbf{Parameters} $N$: $L(N) \propto N^{-\alpha_N}$
+        \item \textbf{Dataset size} $D$: $L(D) \propto D^{-\alpha_D}$
+        \item \textbf{Compute} $C$: $L(C) \propto C^{-\alpha_C}$
+      \end{enumerate}
+      \vspace{0.5em}
+      Exponents $\alpha \approx 0.05$–$0.076$ (empirically measured).\\
+      \vspace{0.3em}
+      \alert{Critical result:} Optimal compute allocation is \emph{not} all-in on parameters.
+    \column{0.44\textwidth}
+      \input{../../tikz/scaling_laws}
+  \end{columns}
+  \note{The power law means you can predict performance before spending compute. This changed how labs plan training runs.}
+\end{frame}
+
+\begin{frame}{Chinchilla Scaling: Compute-Optimal Training}
+  \textbf{Hoffmann et al.\ (2022)}~\cite{hoffmann2022chinchilla} revisited scaling laws:
+  \vspace{0.4em}
+  \begin{tcolorbox}[hitbox, title=Chinchilla Rule of Thumb]
+    For compute-optimal training, \textbf{scale tokens and parameters equally}:
+    \[
+      N_\text{opt} \approx D_\text{opt} \propto C^{0.5}
+    \]
+    $\approx$ 20 training tokens per model parameter.
+  \end{tcolorbox}
+  \vspace{0.4em}
+  \begin{itemize}
+    \item GPT-3 (175B params, 300B tokens) was \emph{under-trained} by this criterion.
+    \item Chinchilla (70B params, 1.4T tokens) outperformed GPT-3 at lower compute.
+    \item Implication: many published LLMs are compute-suboptimal.
+  \end{itemize}
+  \note{Ask students: does this mean bigger is not always better? Yes — if data is cheap, train smaller models longer.}
+\end{frame}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Emergent Capabilities}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\sectionframe{Emergent Capabilities}{Abilities that appear suddenly with scale}
+
+\begin{frame}{What Are Emergent Capabilities?}
+  \begin{tcolorbox}[hitbox, title=Definition (Wei et al.\ 2022~\cite{wei2022emergent})]
+    An ability is \textbf{emergent} if it is not present in smaller models but is present in larger models
+    and cannot be predicted by extrapolating the performance of smaller models.
+  \end{tcolorbox}
+  \vspace{0.4em}
+  \textbf{Examples of emergent abilities:}
+  \begin{itemize}
+    \item Few-shot in-context learning (appears $\sim$GPT-3 scale)
+    \item Multi-step arithmetic reasoning
+    \item Code generation, translation to/from formal languages
+    \item Theory-of-mind reasoning (contested)
+  \end{itemize}
+  \note{Important caveat from Schaeffer et al. (2023): some emergence may be an artifact of discontinuous metrics. Discuss with students.}
+\end{frame}
+
+\begin{frame}{Emergent Capabilities: Caveats and Debates}
+  \begin{columns}[T]
+    \column{0.52\textwidth}
+      \textbf{Arguments for genuine emergence:}
+      \begin{itemize}
+        \item Sharp phase transitions in benchmark accuracy
+        \item Not predictable from smooth loss curves
+      \end{itemize}
+      \vspace{0.5em}
+      \textbf{Counterarguments (Schaeffer et al.\ 2023):}
+      \begin{itemize}
+        \item Emergence disappears with \emph{continuous metrics}
+        \item Artifact of threshold-based evaluation
+        \item Gradual improvement in log-probability space
+      \end{itemize}
+    \column{0.44\textwidth}
+      \placeholder{0.95\textwidth}{3.5cm}{BIG-Bench: accuracy jumps at GPT-3+ scale}
+  \end{columns}
+  \note{This is an active research debate. The takeaway is: be skeptical of claims that capability X ``appeared'' at scale Y.}
+\end{frame}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{The Foundation Model Paradigm}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\sectionframe{The Foundation Model Paradigm}{One model, many tasks}
+
+\begin{frame}{What Is a Foundation Model?}
+  \begin{tcolorbox}[hitbox, title=Definition (Bommasani et al.\ 2021~\cite{bommasani2021foundation})]
+    A \textbf{foundation model} is a model trained on broad data at scale that can be
+    \emph{adapted} (via fine-tuning, prompting, or in-context learning) to a wide range of
+    downstream tasks.
+  \end{tcolorbox}
+  \vspace{0.4em}
+  \begin{columns}[T]
+    \column{0.50\textwidth}
+      \textbf{Key properties:}
+      \begin{itemize}
+        \item Trained on massive, diverse corpora
+        \item General-purpose representations
+        \item Adapt via prompting or fine-tuning
+        \item Examples: GPT-4, Llama 2, Gemini, Claude
+      \end{itemize}
+    \column{0.45\textwidth}
+      \placeholder{0.95\textwidth}{3.5cm}{Foundation model → many downstream tasks}
+  \end{columns}
+  \note{The key word is ``adaptation'' not retraining. This is what separates foundation models from earlier task-specific models.}
+\end{frame}
+
+\begin{frame}{Foundation Models vs.\ Traditional ML}
+  \begin{center}
+  \begin{tabular}{lll}
+    \toprule
+    & \textbf{Traditional ML} & \textbf{Foundation Model} \\
+    \midrule
+    Training data & Task-labeled & Broad, self-supervised \\
+    Model size & Small–medium & Billions of parameters \\
+    Adaptation & Retrain from scratch & Prompt / fine-tune \\
+    Tasks & One model per task & One model, many tasks \\
+    Compute & Low & Very high (pretraining) \\
+    Interpretability & Often high & Often low \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \note{This table is a simplified view. In practice, both paradigms coexist, and foundation models are often fine-tuned.}
+\end{frame}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Opportunities and Risks}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\sectionframe{Opportunities and Risks}{The two sides of the foundation model coin}
+
+\begin{frame}{Opportunities}
+  \begin{columns}[T]
+    \column{0.48\textwidth}
+      \textbf{Scientific and economic value:}
+      \begin{itemize}
+        \item Democratize AI capabilities
+        \item Accelerate scientific research (biology, chemistry, medicine)
+        \item Reduce per-task development cost
+        \item Multimodal understanding
+      \end{itemize}
+    \column{0.48\textwidth}
+      \textbf{Practical applications:}
+      \begin{itemize}
+        \item Code generation and debugging
+        \item Medical report generation
+        \item Legal document analysis
+        \item Educational tutoring
+        \item Scientific hypothesis generation
+      \end{itemize}
+  \end{columns}
+  \note{Bommasani et al. go into extensive detail. Students should read the original paper.}
+\end{frame}
+
+\begin{frame}{Risks and Challenges}
+  \begin{tcolorbox}[alertbox, title=Key Risks (Bommasani et al.\ 2021)]
+    \begin{itemize}
+      \item \textbf{Bias amplification}: Models inherit and amplify biases in training data.
+      \item \textbf{Misuse}: Disinformation, spam, phishing at scale.
+      \item \textbf{Centralization}: Power concentrated in few organizations.
+      \item \textbf{Homogenization}: Single model for all tasks → correlated failures.
+      \item \textbf{Environmental cost}: Massive CO$_2$ footprint of pretraining.
+      \item \textbf{Opacity}: Reasoning is often not interpretable.
+    \end{itemize}
+  \end{tcolorbox}
+  \note{This sets the motivation for the safety and alignment lectures in Weeks 12 and 13.}
+\end{frame}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Paper Discussion}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\begin{frame}{Paper Discussion}
+  \papercite{On the Opportunities and Risks of Foundation Models}
+    {Bommasani et al.\ (Stanford HAI + 100 co-authors)}
+    {arXiv 2021 — 200-page report}
+  \vspace{0.5em}
+  \textbf{Key contributions:}
+  \begin{itemize}
+    \item Coined the term \emph{foundation model}.
+    \item Comprehensive taxonomy: capabilities, applications, societal considerations.
+    \item Section on \emph{homogenization}: if foundation models fail, they fail everywhere.
+  \end{itemize}
+  \vspace{0.3em}
+  \textbf{Discussion question:} Is the ``foundation'' metaphor helpful or misleading?\\
+  What does it imply about the models' role in future AI systems?
+  \note{Students should read the abstract and Section 1 (Introduction) and Section 4 (Societal Considerations) before this lecture.}
+\end{frame}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Lab / Demo}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\begin{frame}{Lab Idea: Probing Scaling Behavior}
+  \begin{tcolorbox}[hitbox, title=Lab 1 — Scaling and Emergence]
+    \textbf{Goal:} Observe how model capability changes with scale.\\[4pt]
+    \textbf{Tools:} Hugging Face \texttt{transformers}, GPT-2 (117M, 345M, 774M, 1.5B)
+    \begin{enumerate}
+      \item Measure perplexity on WikiText-103 for each model size.
+      \item Evaluate on a simple arithmetic task (3-digit addition).
+      \item Plot accuracy vs.\ model size on a log-linear scale.
+      \item Identify the scale at which the task ``emerges.''
+    \end{enumerate}
+    \textbf{Deliverable:} 1-page report + plots.
+  \end{tcolorbox}
+  \note{This lab can be done in 2–3 hours on a single GPU or Google Colab.}
+\end{frame}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Discussion \& Summary}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\begin{frame}{Discussion Questions}
+  \begin{enumerate}
+    \item The Chinchilla paper suggests many LLMs are \emph{under-trained} relative to their size.
+          What are the practical implications for organizations that deploy these models?
+    \item Emergent capabilities make it hard to \emph{predict} model behavior.
+          How should this affect AI governance and deployment decisions?
+    \item Is the ``foundation'' metaphor in ``foundation models'' accurate?
+          What are the risks of building critical systems on top of a single base model?
+    \item Should foundation model pretraining runs require environmental impact statements?
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Summary}
+  \begin{itemize}
+    \item \textbf{Transfer learning} enabled reuse of representations across tasks.
+    \item \textbf{Scaling laws} (Kaplan 2020, Hoffmann 2022) show predictable power-law
+          improvements and guide optimal compute allocation.
+    \item \textbf{Emergent capabilities} appear at scale and are not fully predictable.
+    \item \textbf{Foundation models} are trained broadly, adapted cheaply —
+          a paradigm shift from task-specific ML.
+    \item They bring both \textbf{opportunities} (democratization, science) and
+          \textbf{risks} (bias, misuse, centralization).
+  \end{itemize}
+  \vspace{0.4em}
+  \textbf{Next week:} Transformer architectures revisited — the machinery behind foundation models.
+\end{frame}
+
+\begin{frame}[allowframebreaks]{Suggested Reading}
+  \nocite{bommasani2021foundation, kaplan2020scaling, hoffmann2022chinchilla,
+          wei2022emergent, brown2020language, devlin2019bert}
+  \bibliography{../../references}
+\end{frame}
+
+\end{document}

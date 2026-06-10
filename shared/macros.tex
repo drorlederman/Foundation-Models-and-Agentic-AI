@@ -1,0 +1,89 @@
+% shared/macros.tex
+% Course-wide mathematical notation for "Foundation Models and Agentic AI"
+
+% ── Operators ────────────────────────────────────────────────────────────────
+\DeclareMathOperator{\softmax}{softmax}
+\DeclareMathOperator{\sigmoid}{sigmoid}
+\DeclareMathOperator{\LayerNorm}{LayerNorm}
+\DeclareMathOperator{\FFN}{FFN}
+\DeclareMathOperator{\MHA}{MHA}
+\DeclareMathOperator{\Attn}{Attn}
+\DeclareMathOperator{\SDPA}{SDPA}
+\DeclareMathOperator{\CrossAttn}{CrossAttn}
+\DeclareMathOperator{\Embed}{Embed}
+\DeclareMathOperator{\Encode}{Encode}
+\DeclareMathOperator{\Decode}{Decode}
+\DeclareMathOperator{\Retrieve}{Retrieve}
+\DeclareMathOperator{\Rerank}{Rerank}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+% ── Expectation / Probability ─────────────────────────────────────────────────
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Prob}{\mathbb{P}}
+\newcommand{\KL}[2]{D_{\mathrm{KL}}\!\left(#1\,\|\,#2\right)}
+\newcommand{\ELBO}{\mathcal{L}_{\mathrm{ELBO}}}
+
+% ── Norms and inner products ──────────────────────────────────────────────────
+\newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
+\newcommand{\abs}[1]{\left\lvert #1 \right\rvert}
+\newcommand{\inner}[2]{\left\langle #1,\, #2 \right\rangle}
+
+% ── Vectors and matrices ──────────────────────────────────────────────────────
+\newcommand{\bvec}[1]{\boldsymbol{#1}}          % bold vector: \bvec{x}
+\newcommand{\mat}[1]{\mathbf{#1}}               % bold matrix: \mat{W}
+\newcommand{\T}{^\top}                          % transpose: \mat{A}\T
+
+% ── Attention notation ────────────────────────────────────────────────────────
+\newcommand{\query}{\mat{Q}}
+\newcommand{\key}{\mat{K}}
+\newcommand{\val}{\mat{V}}
+\newcommand{\dmodel}{d_{\mathrm{model}}}
+\newcommand{\dff}{d_{\mathrm{ff}}}
+\newcommand{\dk}{d_k}
+\newcommand{\dv}{d_v}
+\newcommand{\nheads}{h}
+
+% Scaled dot-product attention
+\newcommand{\sdpattn}[3]{%
+  \softmax\!\left(\frac{#1 #2\T}{\sqrt{\dk}}\right)#3%
+}
+
+% ── Language model notation ───────────────────────────────────────────────────
+\newcommand{\vocab}{\mathcal{V}}
+\newcommand{\context}{\bvec{c}}
+\newcommand{\token}{x}
+\newcommand{\seq}[1]{\bvec{x}_{1:#1}}
+\newcommand{\ptheta}{p_\theta}
+\newcommand{\pref}[1]{r_\phi(#1)}              % reward model score
+
+% ── RLHF / DPO ───────────────────────────────────────────────────────────────
+\newcommand{\piref}{\pi_{\mathrm{ref}}}
+\newcommand{\pitheta}{\pi_\theta}
+\newcommand{\yw}{y_w}                           % preferred response
+\newcommand{\yl}{y_l}                           % rejected response
+\newcommand{\DPOloss}{\mathcal{L}_{\mathrm{DPO}}}
+
+% ── RAG notation ─────────────────────────────────────────────────────────────
+\newcommand{\docs}{\mathcal{D}}
+\newcommand{\query}{\bvec{q}}                   % query embedding (overloads \query above — use \qvec in RAG context)
+\newcommand{\qvec}{\bvec{q}}
+\newcommand{\dvec}[1]{\bvec{d}_{#1}}
+
+% ── Agent notation ────────────────────────────────────────────────────────────
+\newcommand{\obs}{o}
+\newcommand{\act}{a}
+\newcommand{\thought}{t}
+\newcommand{\tools}{\mathcal{T}}
+\newcommand{\history}{h}
+\newcommand{\concat}{\oplus}                    % sequence concatenation
+
+% ── Sets and spaces ───────────────────────────────────────────────────────────
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+
+% ── Misc ──────────────────────────────────────────────────────────────────────
+\newcommand{\given}{\,|\,}
+\newcommand{\iid}{\overset{\mathrm{iid}}{\sim}}
+\newcommand{\defeq}{\coloneqq}

@@ -1,0 +1,36 @@
+% tikz/memory_taxonomy.tex
+% Memory taxonomy tree for agentic systems
+% Usage: \input{../../tikz/memory_taxonomy}
+\begin{tikzpicture}[
+  level distance=1.3cm,
+  sibling distance=3.2cm,
+  every node/.style={font=\small},
+  edge from parent/.style={draw, ->, >=Stealth, thick, hitblue},
+  root/.style={rectangle, draw=hitblue, fill=hitblue, text=white, rounded corners=4pt,
+               minimum width=2.6cm, minimum height=0.65cm, font=\small\bfseries, align=center},
+  l1/.style={rectangle, draw=hitblue, fill=hitlightblue, rounded corners=3pt,
+             minimum width=2.4cm, minimum height=0.6cm, font=\small\bfseries, align=center},
+  l2/.style={rectangle, draw=gray, fill=gray!8, rounded corners=3pt,
+             minimum width=2.1cm, minimum height=0.55cm, font=\scriptsize, align=center},
+  ex/.style={font=\tiny\itshape, gray, align=center},
+]
+
+\node[root] {Agent Memory}
+  child {node[l1] {In-Context\\(Short-Term)}
+    child {node[l2] {Working\\Memory}
+      child {node[ex] {Chat history,\\scratch pad}}
+    }
+  }
+  child {node[l1] {External\\(Long-Term)}
+    child {node[l2] {Episodic\\Store}
+      child {node[ex] {Past experiences,\\conversation logs}}
+    }
+    child {node[l2] {Semantic\\Store}
+      child {node[ex] {Facts, knowledge\\(Vector DB)}}
+    }
+    child {node[l2] {Procedural\\Memory}
+      child {node[ex] {Tools, code,\\skills}}
+    }
+  };
+
+\end{tikzpicture}

@@ -1,0 +1,298 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+\input{../../shared/preamble}
+
+\title{Week 5: Embeddings and Semantic Search}
+\subtitle{Foundation Models and Agentic AI}
+\author{Lecturer Name}
+\institute{Holon Institute of Technology (HIT)}
+\date{Semester, 2025}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Learning Objectives}
+  After this lecture you will be able to:
+  \begin{itemize}
+    \item Explain \textbf{representation learning} and what makes a good embedding.
+    \item Derive \textbf{Sentence-BERT} and contrastive fine-tuning for sentence embeddings.
+    \item Compare \textbf{dense retrieval} (DPR) and \textbf{sparse retrieval} (BM25).
+    \item Understand \textbf{approximate nearest neighbor (ANN)} search algorithms (HNSW, IVF).
+    \item Describe the architecture of \textbf{vector databases} and \textbf{hybrid search}.
+    \item Explain \textbf{late interaction} (ColBERT) and when it outperforms bi-encoders.
+  \end{itemize}
+\end{frame}
+
+\section{Representation Learning}
+\sectionframe{Representation Learning}{What is a good embedding?}
+
+\begin{frame}{What Is an Embedding?}
+  \begin{tcolorbox}[hitbox, title=Definition]
+    An \textbf{embedding} is a function $f: \mathcal{X} \to \R^d$ that maps inputs
+    (tokens, sentences, images, documents) to a continuous vector space such that
+    \textbf{semantic similarity correlates with geometric proximity}.
+  \end{tcolorbox}
+  \vspace{0.4em}
+  \textbf{Desired properties:}
+  \begin{itemize}
+    \item Synonyms should be close: $f(\text{``car''}) \approx f(\text{``automobile''})$
+    \item Distinct concepts should be far: $f(\text{``king''}) \not\approx f(\text{``peasant''})$
+    \item Analogy structure: $f(\text{king}) - f(\text{man}) + f(\text{woman}) \approx f(\text{queen})$
+  \end{itemize}
+  \vspace{0.3em}
+  \textbf{Applications:} Semantic search, clustering, classification, RAG retrieval.
+\end{frame}
+
+\begin{frame}{From Word2Vec to Contextualized Embeddings}
+  \begin{center}
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{Model} & \textbf{Type} & \textbf{Key limitation} \\
+    \midrule
+    Word2Vec / GloVe & Static word & One vector per word (no context) \\
+    ELMo & Contextual (LSTM) & Shallow fusion \\
+    BERT [CLS] & Contextual (Transformer) & Not optimized for similarity \\
+    Sentence-BERT & Sentence & Fine-tuned for semantic similarity \\
+    E5, BGE, GTE & Modern dense & Fine-tuned on massive IR datasets \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \vspace{0.4em}
+  \textbf{Key point:} Raw BERT [CLS] embeddings perform poorly for semantic search.
+  Task-specific fine-tuning (or contrastive training) is necessary.
+  \note{Humeau et al. (2019) showed that raw BERT is worse than GloVe averaging for semantic textual similarity.}
+\end{frame}
+
+\section{Sentence Embeddings}
+\sectionframe{Sentence Embeddings}{Sentence-BERT and beyond}
+
+\begin{frame}{Sentence-BERT (SBERT)}
+  \textbf{Reimers and Gurevych (2019)}~\cite{reimers2019sentence}
+  \vspace{0.4em}
+  \begin{columns}[T]
+    \column{0.55\textwidth}
+      \textbf{Architecture:} Siamese BERT network.
+      \begin{itemize}
+        \item Two BERT encoders sharing weights.
+        \item Mean-pool the token embeddings to get sentence vectors.
+        \item Fine-tune with \textbf{Natural Language Inference (NLI)} data using contrastive loss.
+      \end{itemize}
+      \vspace{0.3em}
+      \textbf{Loss (NLI triplet):}
+      \[
+        \mathcal{L} = \max(0, \norm{f(a) - f(p)} - \norm{f(a) - f(n)} + \epsilon)
+      \]
+    \column{0.41\textwidth}
+      \placeholder{0.95\textwidth}{4cm}{SBERT: siamese encoding of sentence pairs}
+  \end{columns}
+  \note{The key win: SBERT reduces pairwise similarity computation from $O(n^2)$ cross-encoder forward passes to $O(n)$ encodings + a single inner product.}
+\end{frame}
+
+\begin{frame}{Modern Embedding Models}
+  \begin{columns}[T]
+    \column{0.52\textwidth}
+      \textbf{Training recipe for state-of-the-art embeddings:}
+      \begin{enumerate}
+        \item Pretrain on contrastive web-scale data (MS-MARCO, CC-News pairs).
+        \item Hard negative mining: retrieve top-$k$ near-miss negatives.
+        \item Knowledge distillation from a cross-encoder teacher.
+        \item Optional: instruction-tuned embeddings (E5, Gecko).
+      \end{enumerate}
+    \column{0.44\textwidth}
+      \textbf{Current leaders (MTEB benchmark):}
+      \begin{itemize}
+        \item E5-mistral-7b
+        \item BGE-M3 (multi-lingual)
+        \item GTE-Qwen
+        \item Cohere Embed v3
+        \item OpenAI text-embedding-3-large
+      \end{itemize}
+  \end{columns}
+\end{frame}
+
+\section{Sparse vs.\ Dense Retrieval}
+\sectionframe{Retrieval Paradigms}{BM25 vs.\ Dense Passage Retrieval}
+
+\begin{frame}{BM25: Sparse Term-Based Retrieval}
+  \begin{tcolorbox}[hitbox, title=BM25 Score]
+    \[
+      \text{BM25}(q, d) = \sum_{t \in q} \mathrm{IDF}(t)
+      \cdot \frac{f(t,d)(k_1+1)}{f(t,d) + k_1\left(1 - b + b\cdot\frac{|d|}{\text{avgdl}}\right)}
+    \]
+  \end{tcolorbox}
+  \vspace{0.3em}
+  \begin{itemize}
+    \item $f(t,d)$: term frequency in document $d$; $\mathrm{IDF}(t)$: inverse document frequency.
+    \item $k_1 \approx 1.2$, $b \approx 0.75$: saturation and document-length normalization.
+    \item Extremely fast: inverted index lookups.
+    \item \textbf{Weakness:} vocabulary mismatch — misses synonyms, paraphrases.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Dense Passage Retrieval (DPR)}
+  \textbf{Karpukhin et al.\ (2020)}~\cite{karpukhin2020dpr}
+  \vspace{0.4em}
+  \begin{columns}[T]
+    \column{0.55\textwidth}
+      \textbf{Bi-encoder setup:}
+      \begin{itemize}
+        \item Query encoder $E_Q$, passage encoder $E_P$ (both BERT).
+        \item Retrieve top-$k$ by inner product: $E_Q(q)\T E_P(p)$.
+        \item Fine-tuned on labeled QA pairs with in-batch negatives.
+      \end{itemize}
+      \vspace{0.4em}
+      \textbf{Advantages:}
+      \begin{itemize}
+        \item Captures semantic similarity, not just term overlap.
+        \item Passage embeddings precomputed and cached.
+      \end{itemize}
+    \column{0.41\textwidth}
+      \placeholder{0.95\textwidth}{3.5cm}{DPR: query encoder vs.\ passage encoder, ANN retrieval}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Hybrid Search}
+  \begin{tcolorbox}[hitbox, title=Hybrid Search = BM25 + Dense]
+    Combine sparse and dense scores (e.g., Reciprocal Rank Fusion):
+    \[
+      \text{RRF}(d) = \sum_{r \in \{r_\text{sparse}, r_\text{dense}\}} \frac{1}{k + r(d)}
+    \]
+  \end{tcolorbox}
+  \vspace{0.4em}
+  \begin{itemize}
+    \item Sparse: exact keyword match (good for rare entities, product codes, UUIDs).
+    \item Dense: semantic similarity (good for paraphrases, concept queries).
+    \item Hybrid consistently outperforms either alone on BEIR benchmark.
+    \item Used by: Elasticsearch, Weaviate, Pinecone, Azure Cognitive Search.
+  \end{itemize}
+\end{frame}
+
+\section{Approximate Nearest Neighbor Search}
+\sectionframe{ANN Search}{Scaling to billions of vectors}
+
+\begin{frame}{The ANN Problem}
+  \begin{tcolorbox}[alertbox, title=Problem]
+    Exact nearest neighbor search in $\R^d$ requires $O(n \cdot d)$ per query — intractable for
+    $n = 10^9$ vectors at $d = 768$.
+  \end{tcolorbox}
+  \vspace{0.4em}
+  \textbf{ANN approaches:}
+  \begin{enumerate}
+    \item \textbf{LSH} (Locality-Sensitive Hashing): hash similar vectors to same bucket.
+    \item \textbf{IVF} (Inverted File Index): cluster vectors, search only nearby clusters.
+    \item \textbf{HNSW} (Hierarchical Navigable Small Worlds)~\cite{malkov2018hnsw}: hierarchical graph, greedy search.
+    \item \textbf{Product Quantization (PQ)}: compress vectors, reduce memory 8–32×.
+  \end{enumerate}
+  \vspace{0.3em}
+  HNSW is the most widely adopted: $O(\log n)$ query time, high recall.
+\end{frame}
+
+\begin{frame}{Vector Databases}
+  \begin{columns}[T]
+    \column{0.50\textwidth}
+      \textbf{Popular options:}
+      \begin{itemize}
+        \item \textbf{FAISS} (Meta): library, not a DB; supports IVF + PQ + HNSW.
+        \item \textbf{Pinecone}: managed cloud, serverless, hybrid search.
+        \item \textbf{Weaviate}: open-source, schema-based, multi-modal.
+        \item \textbf{Qdrant}: open-source, payload filtering, Rust.
+        \item \textbf{Chroma}: lightweight, in-memory, for prototyping.
+        \item \textbf{pgvector}: Postgres extension; no separate infra.
+      \end{itemize}
+    \column{0.46\textwidth}
+      \textbf{Key features to compare:}
+      \begin{itemize}
+        \item Indexing algorithm (HNSW vs.\ IVF)
+        \item Metadata filtering (pre-filter vs.\ post-filter)
+        \item Persistent vs.\ in-memory
+        \item Multi-vector support (ColBERT-style)
+        \item Replication and sharding
+      \end{itemize}
+  \end{columns}
+\end{frame}
+
+\section{Late Interaction: ColBERT}
+\sectionframe{ColBERT}{Beyond single-vector representations}
+
+\begin{frame}{ColBERT: Contextualized Late Interaction}
+  \textbf{Khattab and Zaharia (2020)}~\cite{khattab2020colbert}
+  \vspace{0.4em}
+  \begin{tcolorbox}[hitbox, title=Late Interaction Scoring]
+    Represent query $q$ and document $d$ as \emph{sequences} of token embeddings:
+    \[
+      \text{Score}(q, d) = \sum_{i \in q} \max_{j \in d} E_q^i \cdot E_d^j
+    \]
+    MaxSim over document tokens for each query token; sum over query.
+  \end{tcolorbox}
+  \vspace{0.3em}
+  \begin{itemize}
+    \item Better than bi-encoder (less information compression).
+    \item Much faster than cross-encoder (offline document encoding).
+    \item Used in: ColBERTv2, PLAID retrieval pipeline, RAGatouille.
+  \end{itemize}
+\end{frame}
+
+\section{Paper Discussion}
+\begin{frame}{Paper Discussion}
+  \papercite{Dense Passage Retrieval for Open-Domain Question Answering}
+    {Karpukhin, Oguz, Min, Lewis et al.\ (Facebook AI)}
+    {EMNLP 2020~\cite{karpukhin2020dpr}}
+  \vspace{0.4em}
+  \textbf{Key findings:}
+  \begin{itemize}
+    \item DPR beats BM25 by $+9$ points on Natural Questions top-20 retrieval accuracy.
+    \item In-batch negatives are a simple but effective training strategy.
+    \item Showed that \emph{dense retrieval from scratch} can match BM25 with minimal data.
+  \end{itemize}
+  \vspace{0.3em}
+  \textbf{Discussion:} DPR requires pre-encoding all passages. What are the engineering challenges
+  of maintaining a dense index as the document corpus updates in real time?
+\end{frame}
+
+\section{Lab / Demo}
+\begin{frame}{Lab Idea: Build a Semantic Search Engine}
+  \begin{tcolorbox}[hitbox, title=Lab 5 — Semantic Search with FAISS]
+    \textbf{Goal:} Build and evaluate a working semantic search system.\\[4pt]
+    \textbf{Tools:} \texttt{sentence-transformers}, \texttt{faiss-cpu}, Wikipedia dump (10K articles)
+    \begin{enumerate}
+      \item Encode 10K Wikipedia passages with \texttt{all-MiniLM-L6-v2}.
+      \item Build a FAISS flat index; measure exact search latency.
+      \item Switch to FAISS HNSW; compare speed/recall trade-off.
+      \item Implement BM25 (pyserini); compare result quality with 10 queries.
+      \item Implement RRF hybrid search; measure MRR@10 on TriviaQA.
+    \end{enumerate}
+    \textbf{Deliverable:} Speed/recall table + qualitative comparison.
+  \end{tcolorbox}
+\end{frame}
+
+\section{Discussion \& Summary}
+\begin{frame}{Discussion Questions}
+  \begin{enumerate}
+    \item BM25 has been around since the 1990s. Why does it still often outperform dense retrieval on out-of-domain benchmarks?
+    \item HNSW is the dominant ANN algorithm, but it has no formal retrieval guarantees. What are the real-world failure modes?
+    \item ColBERT stores per-token embeddings for every document. How does this change the storage/compute trade-off compared to a bi-encoder?
+    \item When would you use a managed vector database (Pinecone) vs.\ running your own (Qdrant/FAISS)? What are the key decision factors?
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Summary}
+  \begin{itemize}
+    \item Good embeddings require \textbf{contrastive fine-tuning}; raw BERT performs poorly for search.
+    \item \textbf{Sentence-BERT} and modern models (E5, BGE) encode sentences into semantically meaningful spaces.
+    \item \textbf{Sparse retrieval} (BM25): fast, exact, vocabulary-limited.
+    \item \textbf{Dense retrieval} (DPR): slower offline encoding, better semantic matching.
+    \item \textbf{Hybrid search} (BM25 + dense) consistently outperforms either alone.
+    \item \textbf{HNSW} enables sub-linear ANN search; \textbf{ColBERT} improves quality via late interaction.
+  \end{itemize}
+  \vspace{0.3em}
+  \textbf{Next week:} Retrieval-Augmented Generation — putting search inside a generative model.
+\end{frame}
+
+\begin{frame}[allowframebreaks]{Suggested Reading}
+  \nocite{reimers2019sentence, karpukhin2020dpr, khattab2020colbert, malkov2018hnsw}
+  \bibliography{../../references}
+\end{frame}
+
+\end{document}

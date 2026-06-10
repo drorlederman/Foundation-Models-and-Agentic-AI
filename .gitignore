@@ -1,0 +1,34 @@
+# LaTeX build artefacts
+*.aux
+*.log
+*.nav
+*.out
+*.snm
+*.toc
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.synctex(busy)
+*.dvi
+*.ps
+*.vrb
+*.idx
+*.ilg
+*.ind
+*.lof
+*.lot
+*.lol
+*.run.xml
+*-blx.bib
+_minted-*/
+
+# Compiled PDFs (comment out if you want to track PDFs)
+# *.pdf
+
+# Editor temp files
+*.swp
+*~
+.DS_Store
+Thumbs.db

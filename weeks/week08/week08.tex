@@ -1,0 +1,267 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+\input{../../shared/preamble}
+
+\title{Week 8: Reasoning and Planning in LLM Agents}
+\subtitle{Foundation Models and Agentic AI}
+\author{Lecturer Name}
+\institute{Holon Institute of Technology (HIT)}
+\date{Semester, 2025}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Learning Objectives}
+  After this lecture you will be able to:
+  \begin{itemize}
+    \item Explain \textbf{chain-of-thought (CoT)} prompting and its variants.
+    \item Describe \textbf{Tree of Thoughts (ToT)} and search-based reasoning.
+    \item Understand \textbf{Reflexion} as verbal reinforcement learning via self-reflection.
+    \item Identify the \textbf{limits of LLM reasoning} and when it breaks down.
+    \item Discuss \textbf{process reward models} and verification strategies.
+    \item Apply \textbf{self-consistency} to improve reliability without architecture changes.
+  \end{itemize}
+\end{frame}
+
+\section{Chain-of-Thought Prompting}
+\sectionframe{Chain-of-Thought}{Teaching models to think step by step}
+
+\begin{frame}{Chain-of-Thought Prompting}
+  \textbf{Wei et al.\ (2022)}~\cite{wei2022chain}
+  \vspace{0.4em}
+  \begin{tcolorbox}[hitbox, title=CoT Prompt Example]
+    \textbf{Standard:} Q: Roger has 5 tennis balls. He buys 2 more cans (3 balls each). How many does he have?  A: 11.\\[6pt]
+    \textbf{CoT:} Q: Roger has 5 tennis balls... A: \textit{Roger starts with 5. He buys $2 \times 3 = 6$ more. $5 + 6 = 11$.} A: 11.
+  \end{tcolorbox}
+  \vspace{0.4em}
+  \textbf{Key findings:}
+  \begin{itemize}
+    \item CoT emerges as a useful ability only at $\sim$100B parameter scale.
+    \item Zero-shot CoT: append ``\textit{Let's think step by step.}'' — surprisingly effective.
+    \item Gains largest on \textbf{multi-step arithmetic and commonsense reasoning}.
+  \end{itemize}
+  \note{Ask students why CoT helps. One hypothesis: the intermediate tokens serve as a scratchpad that expands the model's effective computation. The KV-cache of the reasoning acts as working memory.}
+\end{frame}
+
+\begin{frame}{Self-Consistency: Majority Vote over CoT Paths}
+  \textbf{Wang et al.\ (2023)}~\cite{wang2023selfconsistency}
+  \vspace{0.4em}
+  \begin{tcolorbox}[hitbox, title=Self-Consistency]
+    Sample $k$ diverse CoT reasoning paths from the model.
+    Take the \textbf{majority vote} on the final answers.
+    \[
+      \hat{y} = \argmax_y \sum_{i=1}^k \mathbb{1}[y_i = y]
+    \]
+  \end{tcolorbox}
+  \vspace{0.4em}
+  \begin{itemize}
+    \item Greedy decoding ($k=1$) is brittle; a single wrong reasoning step derails the answer.
+    \item Self-consistency with $k=40$: +17 points on GSM8K over greedy CoT.
+    \item Trade-off: $k\times$ inference cost.
+    \item Works best when \emph{most paths lead to the right answer}, even via different routes.
+  \end{itemize}
+\end{frame}
+
+\section{Tree of Thoughts}
+\sectionframe{Tree of Thoughts}{Deliberate problem solving via search}
+
+\begin{frame}{Tree of Thoughts (ToT)}
+  \textbf{Yao et al.\ (2023)}~\cite{yao2023tree}
+  \vspace{0.4em}
+  \begin{columns}[T]
+    \column{0.55\textwidth}
+      \textbf{Key idea:}
+      \begin{itemize}
+        \item Decompose problems into \textbf{thoughts} (intermediate steps).
+        \item At each step: generate $k$ candidate thoughts.
+        \item \textbf{Evaluate} each thought (LLM-as-judge: ``sure/maybe/impossible'').
+        \item \textbf{Search} over the tree: BFS or DFS.
+      \end{itemize}
+      \vspace{0.4em}
+      \textbf{Results on Game of 24:}\\
+      ToT: 74\% vs.\ CoT: 4\% (solving a card game requiring 4 arithmetic operations).
+    \column{0.41\textwidth}
+      \placeholder{0.95\textwidth}{4.5cm}{ToT: tree of thought nodes with evaluation scores}
+  \end{columns}
+  \note{The Game of 24 result is dramatic. The gap illustrates that CoT linear reasoning fundamentally fails on search problems.}
+\end{frame}
+
+\begin{frame}{ToT: Components}
+  \begin{columns}[T]
+    \column{0.52\textwidth}
+      \textbf{Thought generation:}
+      \begin{itemize}
+        \item \emph{Sample}: draw $k$ thoughts i.i.d.
+        \item \emph{Propose}: prompt for a list of $k$ distinct candidates.
+      \end{itemize}
+      \vspace{0.4em}
+      \textbf{State evaluation:}
+      \begin{itemize}
+        \item \emph{Value}: score each thought independently with LLM.
+        \item \emph{Vote}: LLM chooses the best among candidates.
+      \end{itemize}
+      \vspace{0.4em}
+      \textbf{Search algorithm:}
+      \begin{itemize}
+        \item \emph{BFS}: expand best $b$ nodes at each depth.
+        \item \emph{DFS}: explore one path to completion; backtrack on failure.
+      \end{itemize}
+    \column{0.44\textwidth}
+      \begin{algorithm}[H]
+        \caption{ToT BFS}
+        \begin{algorithmic}[1]
+          \State $S \gets \{x\}$
+          \For{$t = 1$ to $T$}
+            \State $S' \gets \bigcup_{s \in S} G(s, k)$
+            \State $V \gets \text{Eval}(S')$
+            \State $S \gets \text{TopB}(S', V, b)$
+          \EndFor
+          \Return $\text{Best}(S)$
+        \end{algorithmic}
+      \end{algorithm}
+  \end{columns}
+\end{frame}
+
+\section{Reflexion}
+\sectionframe{Reflexion}{Verbal reinforcement learning via self-reflection}
+
+\begin{frame}{Reflexion: Learning from Failure}
+  \textbf{Shinn et al.\ (2023)}~\cite{shinn2023reflexion}
+  \vspace{0.4em}
+  \begin{tcolorbox}[hitbox, title=Reflexion Loop]
+    \begin{enumerate}
+      \item Run agent; receive task feedback (success/failure/observation).
+      \item \textbf{Reflect}: LLM writes a verbal self-evaluation in natural language.
+      \item \textbf{Store} the reflection in an episodic memory buffer.
+      \item \textbf{Re-attempt} the task with reflections in context.
+    \end{enumerate}
+  \end{tcolorbox}
+  \vspace{0.3em}
+  \textbf{Key analogy:} Reflexion is verbal RL — the ``gradient'' is a natural language critique, stored in memory rather than model weights.
+  \vspace{0.3em}\\
+  \textbf{Results:} +22\% on HumanEval coding, +20\% on AlfWorld decision-making.
+\end{frame}
+
+\begin{frame}{Reflexion: Example Trace}
+  \begin{tcolorbox}[hitbox]
+    \textbf{Attempt 1:} [code that fails test case 3] \\[4pt]
+    \textbf{Reflection:} ``My solution assumed all input lists are non-empty, but test case 3 provides an empty list.
+    In the next attempt, I should add a guard for empty input at the start of the function.''\\[4pt]
+    \textbf{Attempt 2:} [code with empty-list guard — passes all tests] ✓
+  \end{tcolorbox}
+  \vspace{0.4em}
+  \textbf{What's stored in memory:} The \emph{textual} reflection, not a gradient.\\
+  \textbf{Limitation:} Memory grows with failed attempts; context length is eventually exhausted.
+\end{frame}
+
+\section{Limits of LLM Reasoning}
+\sectionframe{Limits of LLM Reasoning}{When do LLMs fail to reason?}
+
+\begin{frame}{Known Failure Modes}
+  \begin{columns}[T]
+    \column{0.52\textwidth}
+      \textbf{Systematic failures:}
+      \begin{itemize}
+        \item \textbf{Reversal curse}: models trained on ``A is B'' struggle with ``B is A''.
+        \item \textbf{Compositionality}: fail to reliably combine multiple rules.
+        \item \textbf{Counting and arithmetic}: errors increase sharply with digit length.
+        \item \textbf{Spatial reasoning}: 3D manipulation, maze navigation.
+        \item \textbf{Planning horizon}: performance degrades with plan length.
+        \item \textbf{Sycophancy}: agree with user pressure, even when wrong.
+      \end{itemize}
+    \column{0.44\textwidth}
+      \textbf{Root causes:}
+      \begin{itemize}
+        \item Next-token prediction is not planning.
+        \item No dedicated working memory outside context.
+        \item Training distribution biases.
+        \item RLHF alignment incentivizes agreement.
+      \end{itemize}
+      \placeholder{0.95\textwidth}{2.5cm}{GSM8K accuracy vs.\ number of digit operations}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Process Reward Models (PRMs)}
+  \begin{tcolorbox}[hitbox, title=Outcome vs.\ Process Reward]
+    \textbf{Outcome Reward Model (ORM):} reward the final answer only.\\
+    \textbf{Process Reward Model (PRM):} reward each intermediate \emph{reasoning step}.
+  \end{tcolorbox}
+  \vspace{0.4em}
+  \textbf{Why PRMs?}
+  \begin{itemize}
+    \item ORM cannot distinguish a correct answer reached via wrong reasoning.
+    \item PRM provides denser training signal.
+    \item OpenAI PRM800K dataset: 800K step-level human labels on math problems.
+    \item PRMs enable \textbf{Best-of-N}: generate $N$ solutions, pick highest step-score.
+  \end{itemize}
+  \vspace{0.3em}
+  \textbf{Trade-off:} PRMs require expensive step-level annotation.
+\end{frame}
+
+\section{Paper Discussions}
+\begin{frame}{Paper Discussion 1}
+  \papercite{Chain-of-Thought Prompting Elicits Reasoning in Large Language Models}
+    {Wei, Wang, Schuurmans et al.\ (Google Brain)}
+    {NeurIPS 2022~\cite{wei2022chain}}
+  \vspace{0.4em}
+  \textbf{Key insight:} reasoning ability is a scale-emergent property.\\
+  \textbf{Discussion:} If CoT only works at large scale, what does this imply for small models at the edge?
+\end{frame}
+
+\begin{frame}{Paper Discussion 2}
+  \papercite{Reflexion: Language Agents with Verbal Reinforcement Learning}
+    {Shinn, Cassano, Labash, Gopinath et al.}
+    {NeurIPS 2023~\cite{shinn2023reflexion}}
+  \vspace{0.4em}
+  \textbf{Key contribution:} verbal critique stored in memory as a proxy for RL gradients.\\
+  \textbf{Discussion:} Reflexion requires a reliable task feedback signal. For which tasks
+  is binary success/failure feedback sufficient? For which tasks is it insufficient?
+\end{frame}
+
+\section{Lab / Demo}
+\begin{frame}{Lab Idea: Comparative Reasoning Experiments}
+  \begin{tcolorbox}[hitbox, title=Lab 8 — CoT vs.\ ToT vs.\ Reflexion]
+    \textbf{Goal:} Compare reasoning strategies on a hard math/coding benchmark.\\[4pt]
+    \textbf{Tools:} Python, OpenAI API, GSM8K or MATH dataset (50 problems)
+    \begin{enumerate}
+      \item Baseline: direct answer (no CoT).
+      \item CoT: ``Let's think step by step.''
+      \item Self-consistency: CoT × 5, majority vote.
+      \item Reflexion: 3 retry attempts with verbal reflection.
+      \item Measure accuracy and cost (API tokens) for each strategy.
+    \end{enumerate}
+    \textbf{Deliverable:} Results table + analysis of per-strategy failure modes.
+  \end{tcolorbox}
+\end{frame}
+
+\section{Discussion \& Summary}
+\begin{frame}{Discussion Questions}
+  \begin{enumerate}
+    \item Chain-of-thought works by having the model ``write out'' its reasoning. Does this mean the model is ``actually reasoning,'' or is it just generating tokens that look like reasoning? How would you test the difference?
+    \item Tree of Thoughts requires an LLM to evaluate its own intermediate steps. When does the evaluator LLM fail? Can a model reliably evaluate steps harder than it can generate?
+    \item Reflexion stores verbal self-critiques in the context window. What happens when the context fills up? How would you design a memory-efficient version of Reflexion?
+    \item Process reward models require human step-level annotation of reasoning chains. Is this scalable? What are the alternatives?
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Summary}
+  \begin{itemize}
+    \item \textbf{CoT} prompting unlocks multi-step reasoning at scale; zero-shot CoT works with ``think step by step.''
+    \item \textbf{Self-consistency} improves CoT via majority vote over diverse reasoning paths.
+    \item \textbf{Tree of Thoughts} enables deliberate search; critical for planning and combinatorial tasks.
+    \item \textbf{Reflexion} implements verbal RL: failures are verbalized and stored as memory.
+    \item LLMs have systematic reasoning limits: reversal, compositionality, planning horizon.
+    \item \textbf{PRMs} enable dense step-level supervision; used in OpenAI o1 and similar systems.
+  \end{itemize}
+  \vspace{0.3em}
+  \textbf{Next week:} Memory architectures for agentic systems.
+\end{frame}
+
+\begin{frame}[allowframebreaks]{Suggested Reading}
+  \nocite{wei2022chain, yao2023tree, shinn2023reflexion, wang2023selfconsistency}
+  \bibliography{../../references}
+\end{frame}
+
+\end{document}

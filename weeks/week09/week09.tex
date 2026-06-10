@@ -1,0 +1,287 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+\input{../../shared/preamble}
+
+\title{Week 9: Memory in Agentic Systems}
+\subtitle{Foundation Models and Agentic AI}
+\author{Lecturer Name}
+\institute{Holon Institute of Technology (HIT)}
+\date{Semester, 2025}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Learning Objectives}
+  After this lecture you will be able to:
+  \begin{itemize}
+    \item Distinguish \textbf{in-context (short-term)} from \textbf{external (long-term)} memory.
+    \item Classify agent memory into \textbf{episodic, semantic, and procedural} types.
+    \item Describe how \textbf{vector memory} enables efficient long-term storage and retrieval.
+    \item Explain the \textbf{MemGPT} architecture for LLMs-as-operating-systems.
+    \item Discuss memory \textbf{retrieval, consolidation, and forgetting} in agent systems.
+    \item Analyze the role of memory in the \textbf{Generative Agents} paper.
+  \end{itemize}
+\end{frame}
+
+\section{Why Do Agents Need Memory?}
+\sectionframe{Why Memory?}{Agents must remember beyond a single context window}
+
+\begin{frame}{The Memory Problem}
+  \begin{tcolorbox}[alertbox, title=Core Challenge]
+    An LLM agent has a finite \textbf{context window} (e.g., 128K tokens).
+    \begin{itemize}
+      \item Long-running tasks exceed the context window.
+      \item Multiple sessions mean the agent starts fresh each time.
+      \item Learned preferences, past mistakes, and domain facts cannot be retained.
+    \end{itemize}
+  \end{tcolorbox}
+  \vspace{0.5em}
+  \textbf{Human analogy:} We have working memory (in-context), episodic memory (past experiences), semantic memory (world facts), and procedural memory (skills). Agents need all of these too.
+  \note{Draw the parallel to cognitive science: Tulving's multi-store memory model. Students from cognitive science or NLP may recognize these terms.}
+\end{frame}
+
+\begin{frame}{Memory Taxonomy}
+  \input{../../tikz/memory_taxonomy}
+  \note{This taxonomy maps roughly to cognitive science terms, but with engineering implementations in parentheses.}
+\end{frame}
+
+\section{In-Context Memory}
+\sectionframe{In-Context Memory}{The agent's working memory}
+
+\begin{frame}{In-Context (Short-Term) Memory}
+  \begin{columns}[T]
+    \column{0.55\textwidth}
+      \textbf{What it is:}
+      \begin{itemize}
+        \item The current content of the LLM's context window.
+        \item Includes: system prompt, conversation history, tool call results, agent scratchpad.
+      \end{itemize}
+      \vspace{0.4em}
+      \textbf{Properties:}
+      \begin{itemize}
+        \item \textbf{Capacity-limited}: fixed by model's context length.
+        \item \textbf{Not persistent}: lost when session ends.
+        \item \textbf{Immediate access}: no retrieval overhead.
+        \item \textbf{Expensive at scale}: attention is $O(n^2)$.
+      \end{itemize}
+    \column{0.41\textwidth}
+      \placeholder{0.95\textwidth}{4cm}{Context window as working memory: system + history + tools}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Context Management Strategies}
+  When the context fills up, agents must \textbf{compress or offload}:
+  \vspace{0.4em}
+  \begin{enumerate}
+    \item \textbf{Sliding window}: drop oldest messages.
+    \item \textbf{Summarization}: LLM summarizes earlier conversation; replace with summary.
+    \item \textbf{Key-value extraction}: extract facts from conversation; store in external memory.
+    \item \textbf{Selective forgetting}: retain only messages relevant to current sub-task.
+    \item \textbf{Hierarchical context}: short recent history + compressed long history.
+  \end{enumerate}
+  \vspace{0.3em}
+  Each strategy involves a \textbf{fidelity vs.\ cost} trade-off.
+\end{frame}
+
+\section{External Memory}
+\sectionframe{External Memory}{Persistent storage beyond the context window}
+
+\begin{frame}{Episodic Memory}
+  \begin{tcolorbox}[hitbox, title=Episodic Memory = Log of Past Experiences]
+    Stores \emph{what happened, when, and in what context}.
+    \begin{itemize}
+      \item Previous conversation sessions with a user.
+      \item Results of past tool calls.
+      \item Outcomes of previous task attempts (success/failure).
+    \end{itemize}
+  \end{tcolorbox}
+  \vspace{0.4em}
+  \textbf{Implementation options:}
+  \begin{itemize}
+    \item Simple append-only log (JSON Lines).
+    \item Structured database with timestamps and session IDs.
+    \item Vector-indexed chunks for semantic retrieval of past episodes.
+  \end{itemize}
+  \vspace{0.3em}
+  \textbf{Retrieval:} Most agents retrieve episodic memories by recency and/or relevance to the current task.
+\end{frame}
+
+\begin{frame}{Semantic Memory}
+  \begin{tcolorbox}[hitbox, title=Semantic Memory = Facts About the World]
+    Stores \emph{general knowledge}, facts, preferences, and domain information
+    that are not tied to a specific episode.
+    \begin{itemize}
+      \item User preferences: ``Alice prefers Python over JavaScript.''
+      \item Domain facts: ``The company's fiscal year ends in March.''
+      \item Updated beliefs from new information.
+    \end{itemize}
+  \end{tcolorbox}
+  \vspace{0.4em}
+  \textbf{Implementation:}
+  \begin{itemize}
+    \item Key-value store for structured facts.
+    \item Vector database for fuzzy retrieval of relevant facts.
+    \item Knowledge graph for relational knowledge (entities + relations).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Procedural Memory}
+  \begin{tcolorbox}[hitbox, title=Procedural Memory = Skills and Workflows]
+    Stores \emph{how to do things}: tools, APIs, code templates, workflows.
+    \begin{itemize}
+      \item Available tools and their JSON schemas.
+      \item Code functions that have been tested and verified.
+      \item Multi-step workflows for recurring task types.
+    \end{itemize}
+  \end{tcolorbox}
+  \vspace{0.4em}
+  \textbf{Key insight:} Procedural memory allows agents to \emph{learn skills} and reuse them
+  without regenerating from scratch. This is the memory type least studied in current agent systems.
+\end{frame}
+
+\section{Vector Memory}
+\sectionframe{Vector Memory}{Semantic retrieval for long-term agent memory}
+
+\begin{frame}{Vector Memory Architecture}
+  \begin{columns}[T]
+    \column{0.55\textwidth}
+      \textbf{How it works:}
+      \begin{enumerate}
+        \item \textbf{Store}: encode memory item $m$ as embedding $\bvec{e}_m$; persist $(\bvec{e}_m, m)$.
+        \item \textbf{Retrieve}: at query time, embed current context $\bvec{e}_q$; find top-$k$ by cosine similarity.
+        \item \textbf{Inject}: insert retrieved items into context window.
+      \end{enumerate}
+      \vspace{0.4em}
+      \textbf{Retrieval signals:}
+      \begin{itemize}
+        \item \emph{Recency}: more recent memories weighted higher.
+        \item \emph{Importance}: high-salience memories (user explicitly stated) weighted higher.
+        \item \emph{Relevance}: embedding similarity to current query.
+      \end{itemize}
+    \column{0.41\textwidth}
+      \placeholder{0.95\textwidth}{4cm}{Memory retrieval: query → ANN search → context injection}
+  \end{columns}
+\end{frame}
+
+\section{MemGPT}
+\sectionframe{MemGPT}{LLMs as operating systems for memory}
+
+\begin{frame}{MemGPT: Towards LLMs as Operating Systems}
+  \textbf{Packer et al.\ (2023)}~\cite{packer2023memgpt}
+  \vspace{0.4em}
+  \begin{tcolorbox}[hitbox, title=MemGPT Architecture]
+    Inspired by \textbf{virtual memory} in operating systems:
+    \begin{itemize}
+      \item \textbf{Main context} (in-context window) = ``RAM'' — fast, limited.
+      \item \textbf{External storage} (database) = ``disk'' — slow, unlimited.
+      \item \textbf{Memory manager} (part of LLM agent) — decides what to page in/out.
+    \end{itemize}
+    Agent explicitly calls \texttt{core\_memory\_append()}, \texttt{archival\_memory\_search()}, \texttt{conversation\_search()} as tools.
+  \end{tcolorbox}
+\end{frame}
+
+\begin{frame}{MemGPT: Memory Operations}
+  \begin{center}
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{Operation} & \textbf{Memory Type} & \textbf{Use case} \\
+    \midrule
+    \texttt{core\_memory\_replace} & In-context (editable) & Update user preference \\
+    \texttt{archival\_memory\_insert} & External (append-only) & Store new fact \\
+    \texttt{archival\_memory\_search} & External (searchable) & Recall past info \\
+    \texttt{conversation\_search} & Episodic (searchable) & Recall past conversation \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \vspace{0.4em}
+  \textbf{Key result:} MemGPT passes the ``conversation continuity'' test across sessions —
+  remembering user preferences stated hours/days earlier.
+\end{frame}
+
+\section{Generative Agents: Memory in Practice}
+\sectionframe{Generative Agents}{Memory-powered simulated human behavior}
+
+\begin{frame}{Generative Agents (Park et al.\ 2023)}
+  \textbf{Park et al.\ (2023)}~\cite{park2023generative} — Stanford / Microsoft Research.
+  \vspace{0.4em}
+  \begin{columns}[T]
+    \column{0.55\textwidth}
+      \textbf{System:} 25 LLM-powered agents in a simulated small town (Smallville).
+      Each agent has:
+      \begin{itemize}
+        \item \textbf{Memory stream}: append-only log of all observations.
+        \item \textbf{Reflection}: periodic synthesis of observations into higher-level insights.
+        \item \textbf{Planning}: daily schedule generated from memory and goals.
+      \end{itemize}
+      \vspace{0.3em}
+      \textbf{Memory retrieval score:}
+      \[
+        \text{score} = \alpha_r \cdot r + \alpha_i \cdot i + \alpha_e \cdot e
+      \]
+      $r$ = recency, $i$ = importance, $e$ = relevance.
+    \column{0.41\textwidth}
+      \placeholder{0.95\textwidth}{4cm}{Smallville: agent memories, reflections, and daily plans}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Generative Agents: Emergent Behaviors}
+  \begin{tcolorbox}[hitbox, title=Emergent Social Behaviors]
+    Agents were seeded with one piece of information (``I'm hosting a Valentine's Day party'').
+    Without explicit programming:
+    \begin{itemize}
+      \item Agents spread the news through conversations.
+      \item Two agents independently decided to go together.
+      \item Another agent rearranged their schedule to attend.
+    \end{itemize}
+  \end{tcolorbox}
+  \vspace{0.4em}
+  This demonstrates that \textbf{believable social behavior emerges from memory + planning + communication} without hardcoded rules.
+\end{frame}
+
+\section{Lab / Demo}
+\begin{frame}{Lab Idea: Agent with Persistent Memory}
+  \begin{tcolorbox}[hitbox, title=Lab 9 — Memory-Enabled Conversational Agent]
+    \textbf{Goal:} Build an agent that remembers facts across sessions.\\[4pt]
+    \textbf{Tools:} Python, OpenAI or Anthropic API, ChromaDB or Mem0
+    \begin{enumerate}
+      \item Session 1: tell the agent 5 facts about yourself (name, preferences, projects).
+      \item End session. The agent stores key facts in a vector database.
+      \item Session 2: start a new conversation. The agent retrieves relevant memories.
+      \item Test: ask about facts from session 1 — does the agent remember?
+      \item Add a ``reflection'' step: after session 1, the agent writes a summary of key user traits.
+    \end{enumerate}
+    \textbf{Deliverable:} Code + evaluation: \% facts recalled accurately.
+  \end{tcolorbox}
+\end{frame}
+
+\section{Discussion \& Summary}
+\begin{frame}{Discussion Questions}
+  \begin{enumerate}
+    \item The Generative Agents paper uses a weighted combination of recency, importance, and relevance for memory retrieval. How would you learn optimal weights for these factors rather than hand-tuning them?
+    \item MemGPT lets the LLM decide what to store and what to discard. What happens when the LLM's judgment about memory importance is wrong? How would you detect and correct this?
+    \item Human memory is fallible — we misremember and confabulate. Should agent memory systems be designed to be more reliable than human memory, or should they model human-like forgetting?
+    \item At what point does an agent with extensive persistent memory raise privacy and data sovereignty concerns for users?
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Summary}
+  \begin{itemize}
+    \item Agents need memory beyond the context window for long-running and multi-session tasks.
+    \item \textbf{In-context memory} is fast but capacity-limited; managed via summarization and selective retention.
+    \item \textbf{Episodic memory} stores past experiences; \textbf{semantic} stores facts; \textbf{procedural} stores skills.
+    \item \textbf{Vector memory} enables semantic retrieval weighted by recency, importance, and relevance.
+    \item \textbf{MemGPT} implements paging between in-context and external memory via tool calls.
+    \item \textbf{Generative Agents} demonstrate emergent social behavior from memory + reflection + planning.
+  \end{itemize}
+  \vspace{0.3em}
+  \textbf{Next week:} Multiple agents — collaboration, debate, and multi-agent architectures.
+\end{frame}
+
+\begin{frame}[allowframebreaks]{Suggested Reading}
+  \nocite{park2023generative, packer2023memgpt}
+  \bibliography{../../references}
+\end{frame}
+
+\end{document}

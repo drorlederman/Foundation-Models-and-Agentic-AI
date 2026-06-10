@@ -1,0 +1,55 @@
+% tikz/rag_pipeline.tex
+% RAG pipeline: offline indexing path + online query path
+% Usage: \input{../../tikz/rag_pipeline}
+\begin{tikzpicture}[
+  node distance=0.6cm and 0.8cm,
+  box/.style={rectangle, draw=hitblue, fill=hitlightblue, rounded corners=3pt,
+              minimum width=1.9cm, minimum height=0.6cm, font=\scriptsize, align=center},
+  db/.style={cylinder, draw=hitgold, fill=hitgold!15, shape border rotate=90,
+             minimum width=1.5cm, minimum height=0.8cm, font=\scriptsize, align=center},
+  io/.style={rectangle, draw=hitgold, fill=hitgold!15, rounded corners=3pt,
+             minimum width=1.9cm, minimum height=0.6cm, font=\scriptsize, align=center},
+  arr/.style={->, >=Stealth, thick, hitblue},
+  darr/.style={->, >=Stealth, thick, hitgold, dashed},
+  lbl/.style={font=\tiny, gray},
+]
+
+%% ── Offline Indexing Path (top row) ──────────────────────────────────────────
+\node[io] (docs) {Documents};
+\node[box, right=0.7cm of docs] (chunk) {Chunker};
+\node[box, right=0.7cm of chunk] (enc_off) {Encoder\\(Embed)};
+\node[db, right=0.7cm of enc_off] (vdb) {Vector\\DB};
+
+\draw[darr] (docs) -- (chunk);
+\draw[darr] (chunk) -- (enc_off);
+\draw[darr] (enc_off) -- node[above, lbl] {vectors} (vdb);
+
+% Offline label
+\node[lbl, above=0.15cm of docs, font=\tiny\bfseries, gray] {Offline Indexing};
+
+%% ── Online Query Path (bottom row) ───────────────────────────────────────────
+\node[io, below=1.4cm of docs] (query) {User Query};
+\node[box, right=0.7cm of query] (enc_q) {Query\\Encoder};
+\node[box, right=0.7cm of enc_q] (ret) {Retriever\\(ANN)};
+\node[box, right=0.7cm of ret] (rerank) {Reranker\\(opt.)};
+\node[box, right=0.7cm of rerank] (gen) {LLM\\Generator};
+\node[io, right=0.7cm of gen] (ans) {Answer};
+
+\draw[arr] (query) -- (enc_q);
+\draw[arr] (enc_q) -- (ret);
+\draw[arr] (ret) -- (rerank);
+\draw[arr] (rerank) -- (gen);
+\draw[arr] (gen) -- (ans);
+
+% Retriever pulls from VDB
+\draw[darr, bend right=25] (vdb.south) to
+  node[right, lbl, pos=0.5] {top-$k$} (ret.north);
+
+% Context arrow into generator
+\draw[darr, bend left=20] (rerank.south) to
+  node[below, lbl, pos=0.5] {retrieved chunks} (gen.south west);
+
+% Online label
+\node[lbl, above=0.15cm of query, font=\tiny\bfseries, gray] {Online Query};
+
+\end{tikzpicture}

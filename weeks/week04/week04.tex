@@ -1,0 +1,268 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+\input{../../shared/preamble}
+
+\title{Week 4: Multimodal Foundation Models}
+\subtitle{Foundation Models and Agentic AI}
+\author{Lecturer Name}
+\institute{Holon Institute of Technology (HIT)}
+\date{Semester, 2025}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Learning Objectives}
+  After this lecture you will be able to:
+  \begin{itemize}
+    \item Explain \textbf{vision-language alignment} and how CLIP achieves it.
+    \item Describe the \textbf{Flamingo} architecture and its cross-attention mechanism.
+    \item Compare \textbf{late-fusion} and \textbf{early-fusion} multimodal architectures.
+    \item Understand the design of \textbf{GPT-4o / Gemini-style} unified multimodal models.
+    \item Identify key challenges in \textbf{multimodal reasoning} and evaluation.
+  \end{itemize}
+\end{frame}
+
+\section{Vision-Language Models: Foundations}
+\sectionframe{Vision-Language Alignment}{Teaching models to connect images and text}
+
+\begin{frame}{Why Multimodal?}
+  \begin{columns}[T]
+    \column{0.52\textwidth}
+      \textbf{Motivation:}
+      \begin{itemize}
+        \item Human intelligence is fundamentally multimodal.
+        \item Language alone is ambiguous: ``the bank'' (river vs.\ financial).
+        \item Many real tasks require visual grounding: medical imaging, robotics, UI automation.
+        \item Image captions, VQA, document understanding.
+      \end{itemize}
+      \vspace{0.4em}
+      \textbf{Historical approaches:}
+      \begin{itemize}
+        \item Feature concatenation (CNN + LSTM): ViLBERT, LXMERT
+        \item Limited by separately pretrained unimodal encoders
+      \end{itemize}
+    \column{0.44\textwidth}
+      \placeholder{0.95\textwidth}{4cm}{Multimodal task examples: VQA, captioning, OCR}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Vision Encoders}
+  \begin{tcolorbox}[hitbox, title=Vision Transformer (ViT)]
+    Divide image into $N$ non-overlapping patches of size $P \times P$.
+    Linearly project each patch; add position embeddings; feed into a transformer encoder.
+    \[
+      \bvec{z}_0 = [\bvec{x}_\text{cls}; \bvec{x}_1 \mat{E}; \ldots; \bvec{x}_N \mat{E}] + \mat{E}_\text{pos}
+    \]
+  \end{tcolorbox}
+  \vspace{0.4em}
+  \begin{itemize}
+    \item Patch size $P=16$ (ViT-B/16): $224^2 / 16^2 = 196$ patches + 1 CLS token.
+    \item No convolutional inductive bias — learns spatial structure from data.
+    \item Pre-trained ViT features are the backbone of CLIP, Flamingo, LLaVA, etc.
+  \end{itemize}
+\end{frame}
+
+\section{CLIP: Contrastive Language-Image Pretraining}
+\sectionframe{CLIP}{Aligning vision and language with contrastive learning}
+
+\begin{frame}{CLIP Architecture}
+  \textbf{Radford et al.\ (2021)}~\cite{radford2021learning} — OpenAI.
+  \vspace{0.4em}
+  \begin{columns}[T]
+    \column{0.55\textwidth}
+      \textbf{Setup:}
+      \begin{itemize}
+        \item Dual encoder: image encoder (ViT or ResNet) + text encoder (Transformer).
+        \item Train on 400M image-caption pairs from the internet.
+        \item Maximize cosine similarity of matched pairs; minimize for unmatched.
+      \end{itemize}
+      \vspace{0.4em}
+      \textbf{Loss} (InfoNCE / NT-Xent):
+      \[
+        \mathcal{L} = -\frac{1}{N}\sum_{i=1}^N \log
+        \frac{\exp(\bvec{i}_i \cdot \bvec{t}_i / \tau)}
+             {\sum_{j=1}^N \exp(\bvec{i}_i \cdot \bvec{t}_j / \tau)}
+      \]
+    \column{0.42\textwidth}
+      \placeholder{0.95\textwidth}{4cm}{CLIP: contrastive matrix of image-text similarities}
+  \end{columns}
+  \note{$\tau$ is a learned temperature. Low $\tau$ → peaked distribution; high $\tau$ → uniform.}
+\end{frame}
+
+\begin{frame}{CLIP: Zero-Shot Transfer}
+  \begin{tcolorbox}[hitbox, title=Zero-Shot Classification]
+    For each class label $c$, form prompt: \textit{``A photo of a \{c\}.''}\\
+    Encode all prompts. Classify image by nearest-neighbor in embedding space.
+  \end{tcolorbox}
+  \vspace{0.4em}
+  \textbf{Results:}
+  \begin{itemize}
+    \item Zero-shot CLIP matches supervised ResNet-50 on ImageNet.
+    \item Transfers to 30+ datasets without any task-specific training.
+    \item Demonstrates that \textbf{natural language is a rich supervision signal}.
+  \end{itemize}
+  \vspace{0.3em}
+  \textbf{Limitations:}
+  \begin{itemize}
+    \item Does not understand compositionality well: ``red square above blue circle'' fails.
+    \item Biases from internet-scale image-text data.
+  \end{itemize}
+\end{frame}
+
+\section{Flamingo-Style Models}
+\sectionframe{Flamingo}{Few-shot multimodal learning via cross-attention}
+
+\begin{frame}{Flamingo Architecture}
+  \textbf{Alayrac et al.\ (2022)}~\cite{alayrac2022flamingo} — DeepMind.
+  \vspace{0.4em}
+  \begin{columns}[T]
+    \column{0.55\textwidth}
+      \textbf{Design:}
+      \begin{itemize}
+        \item Frozen large LLM backbone (70B Chinchilla).
+        \item Frozen CLIP-style vision encoder.
+        \item \textbf{Perceiver Resampler}: compresses variable-length image features to fixed-length visual tokens.
+        \item \textbf{Cross-attention layers} interleaved with LLM layers — only these are trained.
+      \end{itemize}
+      \vspace{0.3em}
+      \textbf{Key insight:} Freeze unimodal experts; train only the bridge.
+    \column{0.42\textwidth}
+      \placeholder{0.95\textwidth}{4cm}{Flamingo: frozen LLM + cross-attention to visual tokens}
+  \end{columns}
+  \note{The Perceiver Resampler is a compact cross-attention module that produces a fixed number of output tokens regardless of image resolution.}
+\end{frame}
+
+\begin{frame}{In-Context Multimodal Learning}
+  Flamingo supports \textbf{few-shot multimodal prompting}:
+  \begin{tcolorbox}[hitbox]
+    \texttt{[Image: cat] Caption: A fluffy orange cat.}\\
+    \texttt{[Image: dog] Caption: A brown labrador.}\\
+    \texttt{[Image: \textit{test image}] Caption:}$\square$
+  \end{tcolorbox}
+  \vspace{0.4em}
+  \begin{itemize}
+    \item Each image is treated as a special token sequence in the LLM context.
+    \item The model learns to condition generation on visual input from in-context examples.
+    \item Flamingo-80B achieves state-of-the-art on VQA, captioning with 4 shots.
+  \end{itemize}
+\end{frame}
+
+\section{Modern Unified Multimodal Models}
+\sectionframe{Unified Multimodal Models}{GPT-4V, Gemini, LLaVA}
+
+\begin{frame}{LLaVA: Visual Instruction Tuning}
+  \textbf{Liu et al.\ (2023)}~\cite{liu2023llava}
+  \vspace{0.4em}
+  \begin{columns}[T]
+    \column{0.55\textwidth}
+      \textbf{Architecture:}
+      \begin{itemize}
+        \item CLIP ViT-L/14 → linear projection → LLaMA token space.
+        \item Instruction-tune the combined model on GPT-4 generated visual instructions.
+        \item Open-source, reproducible, 7B parameters.
+      \end{itemize}
+      \vspace{0.4em}
+      \textbf{Key insight:} High-quality instruction data matters more than architecture.
+    \column{0.42\textwidth}
+      \placeholder{0.95\textwidth}{3.5cm}{LLaVA: CLIP features → projection → LLaMA}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{GPT-4o and Gemini: Native Multimodality}
+  \begin{columns}[T]
+    \column{0.52\textwidth}
+      \textbf{GPT-4 Technical Report}~\cite{openai2023gpt4}:
+      \begin{itemize}
+        \item Accepts image and text interleaved.
+        \item Details of architecture not disclosed.
+        \item Strong on chart/diagram understanding, OCR, spatial reasoning.
+      \end{itemize}
+      \vspace{0.4em}
+      \textbf{Gemini 1.5 / GPT-4o:}
+      \begin{itemize}
+        \item Process audio, video, images, and text natively.
+        \item Up to 1M token context window (Gemini 1.5).
+        \item Unified encoder: no separate vision/text pathways.
+      \end{itemize}
+    \column{0.44\textwidth}
+      \placeholder{0.95\textwidth}{4cm}{GPT-4o: unified any-to-any modality model}
+  \end{columns}
+  \note{The trend is toward ``any-to-any'' models that process and generate across all modalities. This is an active research area.}
+\end{frame}
+
+\begin{frame}{Multimodal Reasoning Challenges}
+  \begin{tcolorbox}[alertbox, title=Current Limitations]
+    \begin{itemize}
+      \item \textbf{Compositionality}: struggling with spatial relations, counting, multi-step visual reasoning.
+      \item \textbf{Hallucination}: confidently describing objects not in the image.
+      \item \textbf{Fine-grained OCR}: reading dense text in images is still error-prone.
+      \item \textbf{Video understanding}: temporal reasoning across frames is nascent.
+      \item \textbf{3D spatial understanding}: depth, perspective, rotation.
+    \end{itemize}
+  \end{tcolorbox}
+\end{frame}
+
+\section{Paper Discussion}
+\begin{frame}{Paper Discussion}
+  \papercite{Learning Transferable Visual Models From Natural Language Supervision (CLIP)}
+    {Radford, Kim, Hallacy, Ramesh, Goh et al.\ (OpenAI)}
+    {ICML 2021~\cite{radford2021learning}}
+  \vspace{0.4em}
+  \textbf{What made CLIP revolutionary?}
+  \begin{itemize}
+    \item Showed that internet-scale noisy supervision is sufficient for strong visual representations.
+    \item Zero-shot transfer without task-specific heads.
+    \item The contrastive objective became the foundation of all subsequent VLMs.
+  \end{itemize}
+  \vspace{0.3em}
+  \textbf{Discussion:} What are the societal implications of training on billions of internet images?
+  Who controls the ``visual world model'' encoded in CLIP?
+\end{frame}
+
+\section{Lab / Demo}
+\begin{frame}{Lab Idea: Multimodal Probing with LLaVA}
+  \begin{tcolorbox}[hitbox, title=Lab 4 — Multimodal VQA]
+    \textbf{Goal:} Probe the multimodal capabilities and failure modes of an open-source VLM.\\[4pt]
+    \textbf{Tools:} \texttt{LLaVA-1.5-7B} via HuggingFace or Ollama
+    \begin{enumerate}
+      \item Test basic VQA: object identification, color, counting.
+      \item Test spatial reasoning: ``Is the cup to the left or right of the book?''
+      \item Test compositional queries: ``How many red circles are above the blue square?''
+      \item Attempt to elicit hallucinations: ask about objects not in the image.
+      \item Document: where does the model succeed/fail, and why?
+    \end{enumerate}
+    \textbf{Deliverable:} Annotated test set (20 examples) + failure analysis.
+  \end{tcolorbox}
+\end{frame}
+
+\section{Discussion \& Summary}
+\begin{frame}{Discussion Questions}
+  \begin{enumerate}
+    \item CLIP uses contrastive learning on image-caption pairs. What are the data biases inherent in web-crawled image-caption data? How do they manifest downstream?
+    \item Flamingo freezes the LLM backbone and only trains cross-attention layers. What are the advantages and disadvantages of this ``frozen backbone'' approach?
+    \item GPT-4o can process video, audio, and text simultaneously. What new capabilities does this enable? What new risks does it create?
+    \item Multimodal models can hallucinate objects not present in an image. Is this the same phenomenon as text hallucination, or something different?
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Summary}
+  \begin{itemize}
+    \item \textbf{Vision encoders} (ViT) provide patch-level features; \textbf{CLIP} aligns them with text.
+    \item \textbf{CLIP's contrastive loss} enables zero-shot image classification via text prompts.
+    \item \textbf{Flamingo} bridges frozen unimodal experts with cross-attention + Perceiver Resampler.
+    \item \textbf{LLaVA} shows instruction tuning with quality data achieves strong open-source VLM.
+    \item Modern models (GPT-4o, Gemini) aim for native, unified any-to-any multimodality.
+    \item Key challenges: compositionality, hallucination, video reasoning.
+  \end{itemize}
+  \vspace{0.3em}
+  \textbf{Next week:} Embeddings and semantic search — the retrieval infrastructure behind RAG.
+\end{frame}
+
+\begin{frame}[allowframebreaks]{Suggested Reading}
+  \nocite{radford2021learning, alayrac2022flamingo, liu2023llava, openai2023gpt4}
+  \bibliography{../../references}
+\end{frame}
+
+\end{document}

@@ -1,0 +1,318 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+\input{../../shared/preamble}
+
+\title{Week 3: Training Large Language Models}
+\subtitle{Foundation Models and Agentic AI}
+\author{Lecturer Name}
+\institute{Holon Institute of Technology (HIT)}
+\date{Semester, 2025}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Learning Objectives}
+  After this lecture you will be able to:
+  \begin{itemize}
+    \item Compare \textbf{pretraining objectives}: causal LM, masked LM, span corruption.
+    \item Describe \textbf{data curation} practices for large-scale pretraining.
+    \item Explain \textbf{supervised fine-tuning (SFT)} and instruction tuning.
+    \item Derive the \textbf{RLHF} pipeline: reward model training and PPO optimization.
+    \item Understand \textbf{DPO} and how it eliminates the explicit reward model.
+  \end{itemize}
+\end{frame}
+
+\section{Pretraining Objectives}
+\sectionframe{Pretraining Objectives}{What does the model learn to predict?}
+
+\begin{frame}{Causal Language Modeling (CLM)}
+  \textbf{Used by:} GPT family, Llama, Claude, Mistral.
+  \begin{tcolorbox}[hitbox, title=Objective: Next-Token Prediction]
+    \[
+      \mathcal{L}_\text{CLM}(\theta) = -\sum_{t=1}^{T} \log \ptheta(x_t \given x_1, \ldots, x_{t-1})
+    \]
+  \end{tcolorbox}
+  \vspace{0.4em}
+  \begin{itemize}
+    \item Training signal: predict the \emph{next} token given all previous tokens.
+    \item Uses a \textbf{causal mask}: token $t$ can only attend to tokens $1, \ldots, t-1$.
+    \item Simple yet powerful: implicitly learns syntax, semantics, and world knowledge.
+    \item Naturally supports \textbf{autoregressive generation}.
+  \end{itemize}
+  \note{This is the workhorse of modern LLMs. Ask students: why does predicting the next word require understanding language at a deep level?}
+\end{frame}
+
+\begin{frame}{Masked Language Modeling (MLM)}
+  \textbf{Used by:} BERT, RoBERTa, DeBERTa.
+  \begin{tcolorbox}[hitbox, title=Objective: Fill in the Blank]
+    Randomly mask 15\% of tokens; predict the original tokens:
+    \[
+      \mathcal{L}_\text{MLM}(\theta) = -\sum_{i \in \mathcal{M}} \log \ptheta(x_i \given \bvec{x}_{\setminus \mathcal{M}})
+    \]
+  \end{tcolorbox}
+  \vspace{0.4em}
+  \textbf{Pros:} Bidirectional context → better representations for classification/NER.\\
+  \textbf{Cons:} Cannot generate autoregressively; train-test discrepancy (no \texttt{[MASK]} at inference).
+  \vspace{0.4em}\\
+  \textbf{T5 variant:} Span corruption — mask \emph{contiguous spans}, not individual tokens.
+\end{frame}
+
+\section{Data Curation}
+\sectionframe{Data Curation}{Garbage in, garbage out — at trillion-token scale}
+
+\begin{frame}{Pretraining Data Pipeline}
+  \begin{columns}[T]
+    \column{0.52\textwidth}
+      \textbf{Raw data sources:}
+      \begin{itemize}
+        \item Common Crawl (trillions of tokens, noisy)
+        \item Books (BookCorpus, Project Gutenberg)
+        \item Wikipedia, arXiv, GitHub
+        \item Curated web (C4, The Pile, RedPajama)
+      \end{itemize}
+      \vspace{0.5em}
+      \textbf{Filtering steps:}
+      \begin{enumerate}
+        \item Language identification
+        \item Quality filtering (perplexity, heuristics)
+        \item Near-deduplication (MinHash LSH)
+        \item Safety filtering (pornography, hate speech)
+        \item Domain upsampling / weighting
+      \end{enumerate}
+    \column{0.44\textwidth}
+      \placeholder{0.95\textwidth}{4cm}{Data pipeline: web → filter → deduplicate → tokenize}
+  \end{columns}
+  \note{The Pile paper (Gao et al. 2020) provides detailed statistics. Llama 2's data section shows how domain weighting affects downstream tasks.}
+\end{frame}
+
+\begin{frame}{Tokenization}
+  \begin{columns}[T]
+    \column{0.55\textwidth}
+      \textbf{Byte Pair Encoding (BPE):}
+      \begin{itemize}
+        \item Start: single characters as vocabulary.
+        \item Iteratively merge the most frequent pair.
+        \item Result: subword vocabulary ($\sim$50k tokens).
+      \end{itemize}
+      \vspace{0.4em}
+      \textbf{SentencePiece (Unigram LM):}
+      \begin{itemize}
+        \item Language-independent; handles any script.
+        \item Used by T5, Llama.
+      \end{itemize}
+      \vspace{0.4em}
+      \textbf{Impact:} Tokenization affects downstream task performance, multilingual capability, and math reasoning.
+    \column{0.40\textwidth}
+      \placeholder{0.90\textwidth}{3.5cm}{BPE: ``foundation'' → [``found'', ``ation'']}
+  \end{columns}
+\end{frame}
+
+\section{Supervised Fine-Tuning \& Instruction Tuning}
+\sectionframe{Supervised Fine-Tuning}{From a language model to a helpful assistant}
+
+\begin{frame}{Instruction Tuning / SFT}
+  \textbf{Goal:} Teach the model to follow natural-language instructions.
+  \vspace{0.4em}
+  \begin{tcolorbox}[hitbox, title=SFT Procedure]
+    \begin{enumerate}
+      \item Collect demonstration data: $\{(\text{instruction}_i, \text{response}_i)\}_{i=1}^N$
+      \item Fine-tune the pretrained model with CLM loss on response tokens only.
+      \item Result: model that \emph{follows instructions}, not just completes text.
+    \end{enumerate}
+  \end{tcolorbox}
+  \vspace{0.4em}
+  \textbf{Examples:}
+  \begin{itemize}
+    \item \textit{FLAN} (Wei et al.\ 2022~\cite{wei2022finetuned}): 60+ NLP tasks → strong zero-shot generalization.
+    \item \textit{InstructGPT} (Ouyang et al.\ 2022~\cite{ouyang2022training}): human-written demonstrations + RLHF.
+    \item \textit{Alpaca}, \textit{Vicuna}: open-source SFT on GPT-generated instructions.
+  \end{itemize}
+  \note{SFT alone shifts the model's style but does not guarantee helpfulness or harmlessness. That requires RLHF.}
+\end{frame}
+
+\section{Reinforcement Learning from Human Feedback (RLHF)}
+\sectionframe{RLHF}{Learning from human preferences}
+
+\begin{frame}{Why RLHF?}
+  \begin{tcolorbox}[alertbox, title=Problem with SFT Alone]
+    A model trained only on demonstrations will learn to \emph{imitate} responses —
+    but human preferences are often complex and hard to demonstrate.
+    We need a signal that captures: ``this response is \textbf{better} than that one.''
+  \end{tcolorbox}
+  \vspace{0.5em}
+  \textbf{RLHF} (Christiano et al.\ 2017; Ouyang et al.\ 2022):
+  \begin{enumerate}
+    \item Collect human \textbf{preference pairs}: $(x, y_w, y_l)$ — prompt, preferred, rejected.
+    \item Train a \textbf{reward model} $r_\phi(x, y)$ on the preference data.
+    \item Fine-tune the LLM with RL (PPO) to maximize $r_\phi$.
+  \end{enumerate}
+  \vspace{0.3em}
+  \input{../../tikz/rlhf_pipeline}
+\end{frame}
+
+\begin{frame}{Reward Model Training}
+  Given preference pair $(x, \yw, \yl)$ (human says $\yw$ is better):
+  \vspace{0.3em}
+  \begin{tcolorbox}[hitbox, title=Bradley-Terry Model]
+    \[
+      P(\yw \succ \yl \given x)
+      = \sigma\!\left(r_\phi(x, \yw) - r_\phi(x, \yl)\right)
+    \]
+    \[
+      \mathcal{L}_\text{RM}(\phi) = -\E_{(x,\yw,\yl)}\left[
+        \log \sigma\!\left(r_\phi(x, \yw) - r_\phi(x, \yl)\right)
+      \right]
+    \]
+  \end{tcolorbox}
+  \vspace{0.3em}
+  \begin{itemize}
+    \item Reward model $r_\phi$ is usually initialized from the SFT model + a scalar head.
+    \item Quality depends heavily on \textbf{annotation quality and diversity}.
+    \item Vulnerabilities: reward hacking, out-of-distribution prompts.
+  \end{itemize}
+  \note{Reward hacking: the RL policy finds ways to score high on $r_\phi$ that don't correspond to genuine quality. This is a fundamental problem.}
+\end{frame}
+
+\begin{frame}{PPO Fine-tuning with KL Penalty}
+  Maximize expected reward while staying close to the reference SFT model:
+  \begin{tcolorbox}[hitbox, title=RLHF Objective]
+    \[
+      \max_\theta\ \E_{x \sim \mathcal{D},\, y \sim \pitheta(\cdot|x)}\!\left[
+        r_\phi(x, y) - \beta \log \frac{\pitheta(y|x)}{\piref(y|x)}
+      \right]
+    \]
+  \end{tcolorbox}
+  \vspace{0.3em}
+  \begin{itemize}
+    \item $\beta > 0$: KL penalty coefficient — controls how far the policy drifts from $\piref$.
+    \item Large $\beta$ → safe but conservative; small $\beta$ → risky reward hacking.
+    \item PPO (Schulman et al.\ 2017): proximal policy optimization with clipped surrogate.
+  \end{itemize}
+  \note{The KL penalty is a regularizer. Without it, the policy collapses to repeated reward-hacking outputs.}
+\end{frame}
+
+\section{Direct Preference Optimization (DPO)}
+\sectionframe{Direct Preference Optimization}{A simpler, stable alternative to RLHF}
+
+\begin{frame}{The DPO Insight}
+  \textbf{Rafailov et al.\ (2023)}~\cite{rafailov2023direct}
+  \vspace{0.4em}
+  \begin{tcolorbox}[hitbox, title=Key Insight]
+    The optimal RLHF policy can be written as:
+    \[
+      \pitheta(y|x) \propto \piref(y|x)\exp\!\left(\tfrac{1}{\beta}r(x,y)\right)
+    \]
+    Rearranging gives $r(x,y)$ in terms of $\pitheta$ and $\piref$.
+    Substituting into the Bradley-Terry model yields a \textbf{closed-form loss}:
+  \end{tcolorbox}
+  \vspace{0.3em}
+  \begin{tcolorbox}[hitbox, title=DPO Loss]
+    \[
+      \DPOloss(\theta) = -\E\!\left[
+        \log \sigma\!\left(
+          \beta\log\frac{\pitheta(\yw|x)}{\piref(\yw|x)}
+          - \beta\log\frac{\pitheta(\yl|x)}{\piref(\yl|x)}
+        \right)
+      \right]
+    \]
+  \end{tcolorbox}
+\end{frame}
+
+\begin{frame}{DPO: Advantages and Limitations}
+  \begin{columns}[T]
+    \column{0.52\textwidth}
+      \textbf{Advantages over RLHF:}
+      \begin{itemize}
+        \item No explicit reward model needed.
+        \item No PPO — stable supervised training.
+        \item Simpler implementation (classification-style loss).
+        \item Competitive or better performance.
+      \end{itemize}
+    \column{0.44\textwidth}
+      \textbf{Limitations:}
+      \begin{itemize}
+        \item Requires on-policy data or assumption that $\piref \approx \pitheta$.
+        \item Cannot update in an online fashion (by default).
+        \item Extensions: IPO, KTO, ORPO, SimPO address specific shortcomings.
+      \end{itemize}
+  \end{columns}
+  \vspace{0.5em}
+  \textbf{Current state:} DPO (or its variants) is the dominant alignment technique in open-source LLMs.
+\end{frame}
+
+\section{Paper Discussions}
+\begin{frame}{Paper Discussion 1}
+  \papercite{Training Language Models to Follow Instructions with Human Feedback}
+    {Ouyang, Wu, Jiang et al.\ (OpenAI)}
+    {NeurIPS 2022 — the InstructGPT paper~\cite{ouyang2022training}}
+  \vspace{0.4em}
+  \textbf{Key findings:}
+  \begin{itemize}
+    \item 1.3B InstructGPT significantly preferred over 175B GPT-3 by human raters.
+    \item Small dataset of human demonstrations + preference labels is sufficient.
+    \item ``Alignment tax'': slight performance drop on NLP benchmarks after RLHF.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Paper Discussion 2}
+  \papercite{Direct Preference Optimization: Your Language Model is Secretly a Reward Model}
+    {Rafailov, Sharma, Mitchell, Ermon, Manning, Finn (Stanford)}
+    {NeurIPS 2023~\cite{rafailov2023direct}}
+  \vspace{0.4em}
+  \textbf{Key insight:} The reward function is implicit in the ratio $\pitheta / \piref$.
+  No RL required.\\[0.4em]
+  \textbf{Discussion:} If DPO is simpler and competitive, why would anyone still use RLHF?
+  What are the scenarios where an explicit reward model is necessary?
+\end{frame}
+
+\section{Lab / Demo}
+\begin{frame}{Lab Idea: Fine-tuning with SFT and DPO}
+  \begin{tcolorbox}[hitbox, title=Lab 3 — Alignment Pipeline]
+    \textbf{Goal:} Observe the effect of SFT and DPO on model behavior.\\[4pt]
+    \textbf{Tools:} HuggingFace \texttt{trl} library, \texttt{Llama-3.2-1B}
+    \begin{enumerate}
+      \item Run the base model on 10 prompts (rate helpfulness 1–5).
+      \item Apply SFT on a small instruction dataset (e.g., Alpaca 1K).
+      \item Apply DPO on a small preference dataset (e.g., Anthropic HH-RLHF 1K).
+      \item Re-evaluate on the same prompts. Compare before/after.
+    \end{enumerate}
+    \textbf{Deliverable:} Table of responses + qualitative analysis.
+  \end{tcolorbox}
+\end{frame}
+
+\section{Discussion \& Summary}
+\begin{frame}{Discussion Questions}
+  \begin{enumerate}
+    \item RLHF relies on human preference labels. What biases do annotators introduce?
+          How could you detect and mitigate this?
+    \item The KL penalty in RLHF prevents the model from deviating too far from the reference.
+          Is this a safety feature or a limitation? Under what conditions would you increase $\beta$?
+    \item DPO optimizes for offline preference data. What happens when the learned policy is much
+          better than the reference model — does the DPO loss still provide good gradients?
+    \item InstructGPT showed an ``alignment tax.'' Is safety and helpfulness fundamentally at odds
+          with raw task performance?
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Summary}
+  \begin{itemize}
+    \item \textbf{CLM} (next-token prediction) is the dominant pretraining objective.
+    \item \textbf{Data quality} matters as much as data quantity; curation is a research area.
+    \item \textbf{SFT/Instruction tuning} teaches models to follow instructions.
+    \item \textbf{RLHF}: collect preferences → train reward model → PPO with KL penalty.
+    \item \textbf{DPO}: derive closed-form loss from RLHF solution; no explicit RL needed.
+    \item Modern aligned models (GPT-4, Claude, Llama) use combinations of these techniques.
+  \end{itemize}
+  \vspace{0.3em}
+  \textbf{Next week:} Extending LLMs beyond text — multimodal foundation models.
+\end{frame}
+
+\begin{frame}[allowframebreaks]{Suggested Reading}
+  \nocite{ouyang2022training, rafailov2023direct, wei2022finetuned,
+          brown2020language, touvron2023llama2}
+  \bibliography{../../references}
+\end{frame}
+
+\end{document}

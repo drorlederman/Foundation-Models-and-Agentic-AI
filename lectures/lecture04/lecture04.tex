@@ -1,0 +1,1109 @@
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{Madrid}
+\usecolortheme{default}
+
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+\title{Modern Foundation Models}
+\subtitle{Lecture 4: LLM Training, Optimization and Fine-Tuning}
+\author{Dror Lederman}
+\institute{Holon Institute of Technology}
+\date{\today}
+
+\begin{document}
+
+%------------------------------------------------
+\begin{frame}
+\titlepage
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Lecture Roadmap}
+\begin{enumerate}
+    \item The LLM Training Paradigm
+    \item Pretraining
+    \item Scaling Laws and Compute
+    \item Training Bottlenecks
+    \item Distributed Training
+    \item FlashAttention
+    \item Mixed Precision Training
+    \item Supervised Fine-Tuning
+    \item Parameter-Efficient Fine-Tuning: LoRA and QLoRA
+\end{enumerate}
+\end{frame}
+
+%------------------------------------------------
+\section{LLM Training Paradigm}
+
+\begin{frame}{Paradigm Shift}
+
+\textbf{Traditional ML:}
+
+\begin{itemize}
+    \item Given a task, train a task-specific model.
+    \item Example: one model for spam detection, another for sentiment, another for translation.
+\end{itemize}
+
+\vspace{0.5cm}
+
+\textbf{Modern LLM paradigm:}
+
+\begin{itemize}
+    \item First train a general-purpose language model.
+    \item Then adapt it to downstream tasks.
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Two-Stage LLM Training}
+
+\[
+\text{Raw Text + Code}
+\rightarrow
+\text{Pretraining}
+\rightarrow
+\text{Pretrained Model}
+\rightarrow
+\text{Fine-Tuning}
+\rightarrow
+\text{Task / Instruction Model}
+\]
+
+\vspace{0.5cm}
+
+Main stages:
+
+\begin{enumerate}
+    \item \textbf{Pretraining:} learn general patterns of language and code.
+    \item \textbf{Tuning:} adapt behavior to desired tasks.
+\end{enumerate}
+
+\end{frame}
+
+%------------------------------------------------
+\section{Pretraining}
+
+\begin{frame}{Pretraining Goal}
+
+The goal of pretraining is to learn statistical patterns of:
+
+\begin{itemize}
+    \item Natural language
+    \item Code
+    \item Multilingual text
+    \item Structured and semi-structured data
+\end{itemize}
+
+\vspace{0.5cm}
+
+A pretrained model is not trained for one specific task.
+
+\vspace{0.3cm}
+
+It learns a broad representation of text and code.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Pretraining Objective}
+
+For decoder-only LLMs, the main objective is:
+
+\[
+P(w_1,\ldots,w_T)
+=
+\prod_{t=1}^{T}
+P(w_t \mid w_{<t})
+\]
+
+\vspace{0.5cm}
+
+Equivalent training objective:
+
+\[
+\mathcal{L}
+=
+-
+\sum_{t=1}^{T}
+\log P(w_t \mid w_{<t})
+\]
+
+\vspace{0.4cm}
+
+The model learns by predicting the next token.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Next Token Prediction}
+
+Example:
+
+\[
+\texttt{[BOS] A teddy bear is}
+\rightarrow
+?
+\]
+
+\vspace{0.5cm}
+
+The model produces a probability distribution over the vocabulary:
+
+\[
+P(w_{t+1} \mid w_1,\ldots,w_t)
+\]
+
+\vspace{0.4cm}
+
+The correct next token is used as the training target.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Pretraining Data Mixtures}
+
+Typical data sources:
+
+\begin{itemize}
+    \item Web text: Common Crawl, Wikipedia
+    \item Books and articles
+    \item Code: GitHub, StackOverflow
+    \item Multilingual corpora
+    \item Mathematical and scientific text
+\end{itemize}
+
+\vspace{0.5cm}
+
+Modern LLMs are trained on hundreds of billions to trillions of tokens.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Examples of Training Scale}
+
+\begin{table}
+\centering
+\begin{tabular}{lc}
+\toprule
+Model & Approximate Pretraining Tokens \\
+\midrule
+GPT-3 & 300B \\
+LLaMA 3 & 15T \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.5cm}
+
+Training scale is determined by:
+
+\begin{itemize}
+    \item Number of parameters
+    \item Number of tokens
+    \item Available compute
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\section{Scaling Laws}
+
+\begin{frame}{FLOPs and FLOPS}
+
+\textbf{FLOPs}
+
+\[
+\text{FLoating Point OPerations}
+\]
+
+Total number of operations needed for computation.
+
+\vspace{0.5cm}
+
+\textbf{FLOPS}
+
+\[
+\text{FLoating Point OPerations per Second}
+\]
+
+Computational throughput of hardware.
+
+\vspace{0.5cm}
+
+Training LLMs requires enormous numbers of FLOPs.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Scaling Laws}
+
+Empirical scaling laws show that test loss often follows power-law behavior with respect to:
+
+\begin{itemize}
+    \item Model size
+    \item Dataset size
+    \item Training compute
+\end{itemize}
+
+\vspace{0.5cm}
+
+General form:
+
+\[
+L(N,D,C)
+\approx
+A N^{-\alpha}
++
+B D^{-\beta}
++
+E C^{-\gamma}
+\]
+
+\vspace{0.3cm}
+
+where $N$ is parameters, $D$ is data, and $C$ is compute.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Sample Efficiency}
+
+Larger models tend to learn more efficiently from data.
+
+\vspace{0.5cm}
+
+Observation:
+
+\begin{itemize}
+    \item Larger models often reach lower loss with fewer tokens.
+    \item But they require more memory and compute.
+    \item The optimal model size depends on the compute budget.
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Chinchilla Law}
+
+The Chinchilla result argued that many earlier LLMs were undertrained.
+
+\vspace{0.5cm}
+
+Key message:
+
+\begin{quote}
+For a fixed compute budget, it is often better to train a smaller model on more tokens.
+\end{quote}
+
+\vspace{0.5cm}
+
+Implication:
+
+\[
+\text{Model size and data size should scale together.}
+\]
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Why Pretraining Is Difficult}
+
+Main challenges:
+
+\begin{itemize}
+    \item Very high cost
+    \item Long training time
+    \item Massive GPU clusters
+    \item Energy consumption
+    \item Data quality and filtering
+    \item Knowledge cutoff
+    \item Difficult knowledge editing
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\section{Training Setup}
+
+\begin{frame}{LLM Training Setup}
+
+Training requires:
+
+\begin{enumerate}
+    \item Transformer model
+    \item Large text/code dataset
+    \item Many GPUs
+    \item Distributed training framework
+    \item Optimizer
+    \item Checkpointing and monitoring
+\end{enumerate}
+
+\vspace{0.4cm}
+
+The bottleneck is often not only compute, but also memory and communication.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Training Step}
+
+Each training step includes:
+
+\begin{enumerate}
+    \item Forward pass
+    \item Loss computation
+    \item Backward pass
+    \item Gradient computation
+    \item Optimizer update
+\end{enumerate}
+
+\vspace{0.5cm}
+
+\[
+\theta_{t+1}
+=
+\theta_t
+-
+\alpha \nabla_{\theta}\mathcal{L}(\theta_t)
+\]
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Adam Optimizer}
+
+Adam keeps moving averages of gradients and squared gradients:
+
+\[
+m_t
+=
+\beta_1 m_{t-1}
++
+(1-\beta_1)g_t
+\]
+
+\[
+v_t
+=
+\beta_2 v_{t-1}
++
+(1-\beta_2)g_t^2
+\]
+
+\[
+\theta_{t+1}
+=
+\theta_t
+-
+\alpha
+\frac{m_t}{\sqrt{v_t}+\epsilon}
+\]
+
+\vspace{0.4cm}
+
+Adam improves stability, but adds optimizer-state memory.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Memory Bottleneck}
+
+GPU memory must store:
+
+\begin{itemize}
+    \item Model parameters
+    \item Activations
+    \item Gradients
+    \item Optimizer state
+\end{itemize}
+
+\vspace{0.5cm}
+
+For large LLMs, memory becomes a central bottleneck.
+
+\vspace{0.4cm}
+
+Even modern GPUs have limited memory relative to LLM size.
+
+\end{frame}
+
+%------------------------------------------------
+\section{Distributed Training}
+
+\begin{frame}{Data Parallelism}
+
+\textbf{Idea:}
+
+\begin{itemize}
+    \item Split the batch across GPUs.
+    \item Replicate the full model on each GPU.
+    \item Synchronize gradients across devices.
+\end{itemize}
+
+\vspace{0.5cm}
+
+Pros:
+
+\begin{itemize}
+    \item Simple
+    \item Effective for moderate-size models
+\end{itemize}
+
+Cons:
+
+\begin{itemize}
+    \item Replicates parameters, gradients and optimizer state.
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{ZeRO: Zero Redundancy Optimization}
+
+ZeRO reduces redundant memory across devices.
+
+\vspace{0.5cm}
+
+Stages:
+
+\begin{itemize}
+    \item \textbf{ZeRO-1:} partition optimizer state.
+    \item \textbf{ZeRO-2:} partition optimizer state and gradients.
+    \item \textbf{ZeRO-3:} partition optimizer state, gradients and parameters.
+\end{itemize}
+
+\vspace{0.5cm}
+
+Goal: train larger models with the same GPU memory.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Model Parallelism}
+
+\textbf{Idea:}
+
+Split the model computation across multiple GPUs.
+
+\vspace{0.5cm}
+
+Common forms:
+
+\begin{itemize}
+    \item Tensor Parallelism
+    \item Pipeline Parallelism
+    \item Sequence Parallelism
+    \item Context Parallelism
+    \item Expert Parallelism
+\end{itemize}
+
+\vspace{0.4cm}
+
+Used when the model cannot fit on one GPU.
+
+\end{frame}
+
+%------------------------------------------------
+\section{FlashAttention}
+
+\begin{frame}{Why FlashAttention?}
+
+Standard attention:
+
+\[
+\mathrm{Attention}(Q,K,V)
+=
+\mathrm{softmax}
+\left(
+\frac{QK^T}{\sqrt{d_k}}
+\right)V
+\]
+
+\vspace{0.5cm}
+
+Problem:
+
+\begin{itemize}
+    \item Attention creates large intermediate matrices.
+    \item Moving data between GPU memory levels is expensive.
+    \item HBM is large but slower; SRAM is small but fast.
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Standard Attention Computation}
+
+A simplified standard computation:
+
+\[
+S = QK^T
+\]
+
+\[
+P = \mathrm{softmax}(S)
+\]
+
+\[
+O = PV
+\]
+
+\vspace{0.5cm}
+
+Problem:
+
+\begin{itemize}
+    \item Store $S$ in high-bandwidth memory.
+    \item Read $S$ again for softmax.
+    \item Store $P$.
+    \item Read $P$ again for multiplication with $V$.
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{FlashAttention: Core Idea}
+
+FlashAttention reduces memory reads and writes.
+
+\vspace{0.5cm}
+
+Main strategy:
+
+\begin{quote}
+Compute attention in blocks using fast SRAM, without materializing the full attention matrix in HBM.
+\end{quote}
+
+\vspace{0.5cm}
+
+This is an exact attention algorithm, not an approximation.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Tiling}
+
+FlashAttention uses tiling:
+
+\begin{itemize}
+    \item Load blocks of $Q$, $K$, and $V$ into SRAM.
+    \item Compute partial attention output.
+    \item Accumulate result.
+    \item Write only final output back to HBM.
+\end{itemize}
+
+\vspace{0.5cm}
+
+Key benefit:
+
+\[
+\text{Less memory traffic}
+\Rightarrow
+\text{faster runtime}
+\]
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Recompute Instead of Store}
+
+In the backward pass, FlashAttention may recompute intermediate values.
+
+\vspace{0.5cm}
+
+Before:
+
+\[
+\text{Store } S,P \text{ in HBM}
+\]
+
+After:
+
+\[
+\text{Recompute } S,P \text{ using SRAM tiling}
+\]
+
+\vspace{0.5cm}
+
+Important lesson:
+
+\begin{quote}
+More FLOPs can still mean less runtime if memory traffic is reduced.
+\end{quote}
+
+\end{frame}
+
+%------------------------------------------------
+\section{Precision and Mixed Precision}
+
+\begin{frame}{Floating-Point Representation}
+
+A floating-point number consists of:
+
+\begin{itemize}
+    \item Sign
+    \item Exponent
+    \item Mantissa
+\end{itemize}
+
+\vspace{0.5cm}
+
+Different formats allocate different numbers of bits.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Common Precision Formats}
+
+\begin{table}
+\centering
+\begin{tabular}{lccc}
+\toprule
+Format & Sign & Exponent & Mantissa \\
+\midrule
+FP16 & 1 & 5 & 10 \\
+FP32 & 1 & 8 & 23 \\
+FP64 & 1 & 11 & 52 \\
+BF16 & 1 & 8 & 7 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.5cm}
+
+Lower precision reduces memory and can accelerate computation.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Mixed Precision Training}
+
+Objective:
+
+\begin{quote}
+Speed up training and reduce memory requirements while preserving stability.
+\end{quote}
+
+\vspace{0.5cm}
+
+Typical approach:
+
+\begin{itemize}
+    \item Forward pass in low precision.
+    \item Backward pass in low precision.
+    \item Keep master weights or critical updates in higher precision.
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Why Mixed Precision Works}
+
+Benefits:
+
+\begin{itemize}
+    \item Less memory per tensor
+    \item Faster matrix multiplication
+    \item Larger batch sizes
+    \item Better GPU utilization
+\end{itemize}
+
+\vspace{0.5cm}
+
+Risk:
+
+\begin{itemize}
+    \item Numerical instability
+    \item Underflow or overflow
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\section{Supervised Fine-Tuning}
+
+\begin{frame}{Supervised Fine-Tuning}
+
+\[
+\text{SFT} = \text{Supervised Fine-Tuning}
+\]
+
+\vspace{0.5cm}
+
+Goal:
+
+\begin{quote}
+Change the model behavior by tuning its weights on examples of desired behavior.
+\end{quote}
+
+\vspace{0.5cm}
+
+SFT is usually performed after pretraining.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{SFT Data}
+
+SFT data consists of input-output pairs:
+
+\[
+(x_i, y_i)
+\]
+
+\vspace{0.5cm}
+
+Examples:
+
+\begin{itemize}
+    \item Instruction $\rightarrow$ answer
+    \item Question $\rightarrow$ explanation
+    \item Document $\rightarrow$ summary
+    \item Prompt $\rightarrow$ desired structured output
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Instruction Tuning}
+
+Instruction tuning is a special case of SFT.
+
+\vspace{0.5cm}
+
+The model is trained on instruction-following examples:
+
+\[
+\text{Instruction}
++
+\text{Input}
+\rightarrow
+\text{Desired Response}
+\]
+
+\vspace{0.5cm}
+
+This improves the model's ability to follow user intent.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{SFT Objective}
+
+Given prompt $x$ and target response $y = (y_1,\ldots,y_T)$:
+
+\[
+\mathcal{L}_{SFT}
+=
+-
+\sum_{t=1}^{T}
+\log P(y_t \mid x, y_{<t})
+\]
+
+\vspace{0.5cm}
+
+Same next-token prediction objective, but conditioned on task examples.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Why Not Always Full Fine-Tuning?}
+
+Full fine-tuning updates all model weights.
+
+\vspace{0.5cm}
+
+Problems:
+
+\begin{itemize}
+    \item Expensive
+    \item Requires large GPUs
+    \item Stores full optimizer state
+    \item May overfit or forget prior capabilities
+    \item Hard to maintain many task-specific variants
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\section{LoRA}
+
+\begin{frame}{Parameter-Efficient Fine-Tuning}
+
+Parameter-efficient fine-tuning updates only a small number of parameters.
+
+\vspace{0.5cm}
+
+Motivation:
+
+\begin{itemize}
+    \item Reduce memory
+    \item Reduce compute
+    \item Enable fine-tuning on smaller hardware
+    \item Maintain a frozen base model
+\end{itemize}
+
+\vspace{0.5cm}
+
+Popular method: LoRA.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{LoRA: Low-Rank Adaptation}
+
+LoRA represents the weight update as a low-rank matrix:
+
+\[
+W
+=
+W_0
++
+\Delta W
+\]
+
+\[
+\Delta W
+=
+BA
+\]
+
+where:
+
+\[
+B \in \mathbb{R}^{d \times r},
+\quad
+A \in \mathbb{R}^{r \times k},
+\quad
+r \ll \min(d,k)
+\]
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{LoRA Training}
+
+During LoRA fine-tuning:
+
+\begin{itemize}
+    \item Freeze the original weights $W_0$.
+    \item Train only $A$ and $B$.
+    \item Add the low-rank update during the forward pass.
+\end{itemize}
+
+\vspace{0.5cm}
+
+\[
+h = W_0x + BAx
+\]
+
+\vspace{0.5cm}
+
+This greatly reduces trainable parameters.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Why Low Rank?}
+
+The assumption:
+
+\begin{quote}
+Task-specific adaptation often lies in a low-dimensional subspace.
+\end{quote}
+
+\vspace{0.5cm}
+
+Therefore, a small-rank update may be enough to adapt the model.
+
+\vspace{0.5cm}
+
+Typical ranks:
+
+\[
+r = 4, 8, 16, 32, 64
+\]
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Where to Apply LoRA?}
+
+Common locations:
+
+\begin{itemize}
+    \item Query projection
+    \item Key projection
+    \item Value projection
+    \item Output projection
+    \item Feed-forward layers
+\end{itemize}
+
+\vspace{0.5cm}
+
+In practice, applying LoRA to attention projections is very common.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{LoRA Tradeoffs}
+
+Advantages:
+
+\begin{itemize}
+    \item Much fewer trainable parameters
+    \item Lower memory footprint
+    \item Easy to swap adapters
+    \item Practical for many downstream tasks
+\end{itemize}
+
+\vspace{0.4cm}
+
+Limitations:
+
+\begin{itemize}
+    \item Hyperparameter-sensitive
+    \item May underperform full fine-tuning on some tasks
+    \item Requires careful learning-rate tuning
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\section{QLoRA}
+
+\begin{frame}{QLoRA}
+
+QLoRA combines:
+
+\begin{itemize}
+    \item Quantized frozen base model
+    \item Full-precision LoRA adapters
+\end{itemize}
+
+\vspace{0.5cm}
+
+Idea:
+
+\begin{quote}
+Store the frozen base weights in low precision, but train LoRA adapters normally.
+\end{quote}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{QLoRA Computation}
+
+The model uses:
+
+\[
+W_0^{quantized}
++
+BA
+\]
+
+\vspace{0.5cm}
+
+where:
+
+\begin{itemize}
+    \item $W_0$ is stored quantized.
+    \item $A$ and $B$ are stored and trained in higher precision.
+    \item Computation may be performed in higher precision.
+\end{itemize}
+
+\vspace{0.5cm}
+
+This greatly reduces memory requirements.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Efficient Quantization}
+
+Quantization maps floating-point weights to fewer bits.
+
+\vspace{0.5cm}
+
+Examples:
+
+\begin{itemize}
+    \item 8-bit quantization
+    \item 4-bit quantization
+    \item NF4: NormalFloat 4-bit
+\end{itemize}
+
+\vspace{0.5cm}
+
+NF4 is designed for values that roughly follow a normal distribution.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{LoRA vs QLoRA}
+
+\begin{table}
+\centering
+\begin{tabular}{lll}
+\toprule
+Method & Base Model & Trainable Parameters \\
+\midrule
+Full Fine-Tuning & Full precision & All weights \\
+LoRA & Frozen full precision & Low-rank adapters \\
+QLoRA & Frozen quantized & Low-rank adapters \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.5cm}
+
+QLoRA is especially useful when GPU memory is limited.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Key Takeaways}
+
+\begin{itemize}
+    \item LLM training usually follows pretraining plus tuning.
+    \item Pretraining learns next-token prediction over massive text/code corpora.
+    \item Scaling laws connect model size, data size and compute.
+    \item Training is often memory-bound, not only compute-bound.
+    \item ZeRO and model parallelism enable distributed training.
+    \item FlashAttention reduces memory traffic.
+    \item Mixed precision reduces memory and accelerates training.
+    \item SFT changes model behavior using desired examples.
+    \item LoRA and QLoRA enable practical fine-tuning of large models.
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Suggested Reading}
+
+\begin{itemize}
+    \item Brown et al. (2020), \textit{Language Models are Few-Shot Learners}
+    \item Kaplan et al. (2020), \textit{Scaling Laws for Neural Language Models}
+    \item Hoffmann et al. (2022), \textit{Training Compute-Optimal Large Language Models}
+    \item Rajbhandari et al. (2019), \textit{ZeRO: Memory Optimizations Toward Training Trillion Parameter Models}
+    \item Dao et al. (2022), \textit{FlashAttention}
+    \item Micikevicius et al. (2017), \textit{Mixed Precision Training}
+    \item Hu et al. (2021), \textit{LoRA}
+    \item Dettmers et al. (2023), \textit{QLoRA}
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}
+\centering
+\Huge Questions?
+\end{frame}
+
+\end{document}

@@ -1,0 +1,892 @@
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{Madrid}
+\usecolortheme{default}
+
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+\title{Modern Foundation Models}
+\subtitle{Lecture 3: Large Language Models, MoE, Decoding and Prompting}
+\author{Dror Lederman}
+\institute{Holon Institute of Technology}
+\date{\today}
+
+\begin{document}
+
+%------------------------------------------------
+\begin{frame}
+\titlepage
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Lecture Roadmap}
+\begin{enumerate}
+    \item Recap: Transformer Model Families
+    \item What is a Large Language Model?
+    \item Mixture-of-Experts LLMs
+    \item Response Generation
+    \item Decoding Strategies
+    \item Guided Decoding
+    \item Prompting Strategies
+    \item Inference Optimizations
+\end{enumerate}
+\end{frame}
+
+%------------------------------------------------
+\section{Recap}
+
+\begin{frame}{Recap: Transformer-Based Model Families}
+
+\begin{table}
+\centering
+\begin{tabular}{lll}
+\toprule
+Family & Main Use & Examples \\
+\midrule
+Encoder-Decoder & Text-to-text & T5, mT5, ByT5 \\
+Encoder-Only & Understanding, classification & BERT, RoBERTa \\
+Decoder-Only & Text generation & GPT, LLaMA, Mistral \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.4cm}
+
+Modern LLMs are usually \textbf{decoder-only Transformer-based models}.
+
+\end{frame}
+
+%------------------------------------------------
+\section{LLM Overview}
+
+\begin{frame}{Terminology}
+
+\[
+\text{LLM} = \text{Large Language Model}
+\]
+
+\vspace{0.5cm}
+
+A language model assigns probabilities to sequences of tokens:
+
+\[
+P(w_1, w_2, \ldots, w_T)
+\]
+
+\vspace{0.4cm}
+
+Using the chain rule:
+
+\[
+P(w_1,\ldots,w_T)
+=
+\prod_{t=1}^{T}
+P(w_t \mid w_1,\ldots,w_{t-1})
+\]
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{What Makes a Language Model ``Large''?}
+
+\begin{itemize}
+    \item \textbf{Model size:} billions or trillions of parameters.
+    \item \textbf{Training data:} hundreds of billions or trillions of tokens.
+    \item \textbf{Compute:} large-scale GPU/TPU clusters.
+    \item \textbf{Capabilities:} generation, reasoning, coding, summarization, translation.
+\end{itemize}
+
+\vspace{0.4cm}
+
+Large scale changes both performance and behavior.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Decoder-Only LLMs}
+
+Decoder-only LLMs predict the next token:
+
+\[
+P(w_{t+1} \mid w_1,\ldots,w_t)
+\]
+
+\vspace{0.4cm}
+
+Examples:
+
+\begin{itemize}
+    \item GPT series
+    \item LLaMA
+    \item Gemma
+    \item Mistral
+    \item Qwen
+    \item DeepSeek
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\section{Mixture of Experts}
+
+\begin{frame}{Motivation for Mixture-of-Experts}
+
+Large dense models use all parameters for every token.
+
+\vspace{0.4cm}
+
+Question:
+
+\begin{quote}
+Do we really need to activate the entire model for every input?
+\end{quote}
+
+\vspace{0.4cm}
+
+Mixture-of-Experts introduces conditional computation:
+
+\[
+\text{Use only a subset of the model for each token.}
+\]
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Mixture-of-Experts: Basic Idea}
+
+An MoE layer contains multiple experts:
+
+\[
+E_1, E_2, \ldots, E_n
+\]
+
+A gating network selects which experts to use:
+
+\[
+G(x)
+\]
+
+The output is:
+
+\[
+\hat{y}
+=
+\sum_{i=1}^{n}
+G_i(x)E_i(x)
+\]
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Dense MoE vs Sparse MoE}
+
+\textbf{Dense MoE}
+
+\[
+\hat{y}
+=
+\sum_{i=1}^{n}
+G_i(x)E_i(x)
+\]
+
+All experts contribute.
+
+\vspace{0.5cm}
+
+\textbf{Sparse MoE}
+
+\[
+\hat{y}
+=
+\sum_{i \in \mathcal{I}_k}
+G_i(x)E_i(x)
+\]
+
+Only top-$k$ experts contribute.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{MoE in Transformer Models}
+
+In modern Transformer-based MoE models:
+
+\begin{itemize}
+    \item The dense feed-forward network is replaced by multiple experts.
+    \item A router selects experts for each token.
+    \item Routing is usually token-level.
+\end{itemize}
+
+\vspace{0.4cm}
+
+\[
+\text{Transformer Block}
+=
+\text{Attention}
++
+\text{MoE Feed-Forward Layer}
+\]
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Why MoE?}
+
+Advantages:
+
+\begin{itemize}
+    \item More parameters without proportional increase in compute.
+    \item Conditional specialization of experts.
+    \item Better scaling efficiency.
+\end{itemize}
+
+\vspace{0.4cm}
+
+Tradeoff:
+
+\begin{itemize}
+    \item More complex training.
+    \item Routing instability.
+    \item Load balancing challenges.
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Training Challenge: Routing Collapse}
+
+A common problem:
+
+\begin{quote}
+The same expert gets selected most of the time.
+\end{quote}
+
+\vspace{0.4cm}
+
+This is called:
+
+\[
+\text{routing collapse}
+\]
+
+\vspace{0.4cm}
+
+It reduces expert diversity and wastes capacity.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Auxiliary Load-Balancing Loss}
+
+To encourage balanced expert usage:
+
+\[
+\mathcal{L}_{aux}
+=
+\alpha \cdot N
+\sum_{i=1}^{N}
+f_i P_i
+\]
+
+where:
+
+\begin{itemize}
+    \item $f_i$ = fraction of tokens routed to expert $i$
+    \item $P_i$ = average routing probability for expert $i$
+    \item $N$ = number of experts
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\section{Response Generation}
+
+\begin{frame}{Next Token Prediction}
+
+LLMs generate text one token at a time.
+
+\vspace{0.4cm}
+
+Example:
+
+\[
+\texttt{[BOS]}
+\rightarrow
+\texttt{A}
+\rightarrow
+\texttt{teddy}
+\rightarrow
+\texttt{bear}
+\rightarrow
+\texttt{is}
+\rightarrow
+?
+\]
+
+\vspace{0.4cm}
+
+At every step, the model predicts a distribution over the vocabulary.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Output Probabilities}
+
+The model produces logits:
+
+\[
+z \in \mathbb{R}^{|V|}
+\]
+
+where $|V|$ is the vocabulary size.
+
+\vspace{0.4cm}
+
+Softmax converts logits into probabilities:
+
+\[
+P(w_i \mid C)
+=
+\frac{\exp(z_i)}
+{\sum_{j=1}^{|V|}\exp(z_j)}
+\]
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Greedy Decoding}
+
+Greedy decoding chooses the most likely token:
+
+\[
+\hat{w}_{t+1}
+=
+\arg\max_{w}
+P(w \mid C)
+\]
+
+\vspace{0.4cm}
+
+Advantages:
+
+\begin{itemize}
+    \item Simple
+    \item Fast
+    \item Deterministic
+\end{itemize}
+
+Limitations:
+
+\begin{itemize}
+    \item Can be repetitive
+    \item Often lacks diversity
+    \item Locally optimal, not globally optimal
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Beam Search}
+
+Beam search keeps the top $k$ most likely partial sequences.
+
+\vspace{0.4cm}
+
+At each step:
+
+\begin{enumerate}
+    \item Expand each candidate sequence.
+    \item Score all candidates.
+    \item Keep only the best $k$ paths.
+\end{enumerate}
+
+\vspace{0.4cm}
+
+Beam search approximates:
+
+\[
+\arg\max_{w_{1:T}}
+P(w_{1:T})
+\]
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Beam Search: Pros and Cons}
+
+\begin{table}
+\centering
+\begin{tabular}{ll}
+\toprule
+Pros & Cons \\
+\midrule
+Better than greedy for structured tasks & More expensive \\
+Useful for translation/summarization & Often less creative \\
+Keeps multiple hypotheses & Can produce generic text \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Sampling}
+
+Instead of taking the maximum, sample from the distribution:
+
+\[
+\hat{w}_{t+1}
+\sim
+P(w_{t+1} \mid C)
+\]
+
+\vspace{0.4cm}
+
+Sampling produces more diverse outputs.
+
+\vspace{0.4cm}
+
+But uncontrolled sampling may produce low-quality or incoherent text.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Top-$k$ Sampling}
+
+Top-$k$ sampling restricts sampling to the $k$ most likely tokens.
+
+\vspace{0.4cm}
+
+\[
+\mathcal{V}_k
+=
+\text{top-}k
+\left(
+P(w \mid C)
+\right)
+\]
+
+\[
+\hat{w}
+\sim
+P(w \mid C), \quad w \in \mathcal{V}_k
+\]
+
+\vspace{0.4cm}
+
+Typical values: $k=40$, $k=50$, $k=100$.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Top-$p$ Sampling}
+
+Top-$p$ sampling, also called nucleus sampling, chooses the smallest set of tokens whose cumulative probability exceeds $p$.
+
+\[
+\sum_{w \in \mathcal{V}_p}
+P(w \mid C)
+\geq p
+\]
+
+\vspace{0.4cm}
+
+Then sample only from $\mathcal{V}_p$.
+
+\vspace{0.4cm}
+
+Typical values:
+
+\[
+p = 0.9,\quad p=0.95
+\]
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Temperature}
+
+Temperature modifies the sharpness of the probability distribution:
+
+\[
+P_T(w_i \mid C)
+=
+\frac{\exp(z_i/T)}
+{\sum_j \exp(z_j/T)}
+\]
+
+\vspace{0.4cm}
+
+Interpretation:
+
+\begin{itemize}
+    \item $T < 1$: sharper, more deterministic.
+    \item $T = 1$: original distribution.
+    \item $T > 1$: flatter, more random.
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Effect of Temperature}
+
+\begin{table}
+\centering
+\begin{tabular}{lll}
+\toprule
+Temperature & Distribution & Output Behavior \\
+\midrule
+Low & Peaked & Focused, deterministic \\
+Medium & Balanced & Natural variation \\
+High & Flat & Creative, risky \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.4cm}
+
+In production systems, temperature is often tuned by task.
+
+\end{frame}
+
+%------------------------------------------------
+\section{Guided Decoding}
+
+\begin{frame}{Motivation for Guided Decoding}
+
+Sometimes we need the model to generate output in a strict format.
+
+\vspace{0.4cm}
+
+Example:
+
+\begin{verbatim}
+{
+  "first_name": "teddy",
+  "last_name": "bear",
+  "age": 33,
+  "hobby": "reading"
+}
+\end{verbatim}
+
+\vspace{0.4cm}
+
+Prompting alone may not guarantee valid JSON.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Guided Decoding}
+
+Core idea:
+
+\begin{quote}
+Only allow tokens that keep the output valid.
+\end{quote}
+
+\vspace{0.4cm}
+
+At each decoding step:
+
+\begin{enumerate}
+    \item Compute next-token probabilities.
+    \item Mask invalid tokens.
+    \item Renormalize probabilities.
+    \item Decode from the constrained distribution.
+\end{enumerate}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Token Masking}
+
+Let $\mathcal{A}_t$ be the set of valid next tokens at time $t$.
+
+\[
+P'(w \mid C)
+=
+\begin{cases}
+\frac{P(w \mid C)}
+{\sum_{u \in \mathcal{A}_t}P(u \mid C)}
+&
+w \in \mathcal{A}_t
+\\
+0
+&
+w \notin \mathcal{A}_t
+\end{cases}
+\]
+
+\vspace{0.4cm}
+
+This forces syntactic validity.
+
+\end{frame}
+
+%------------------------------------------------
+\section{Prompting}
+
+\begin{frame}{Prompting Terminology}
+
+The prompt is the context given to the model.
+
+\vspace{0.4cm}
+
+Important terms:
+
+\begin{itemize}
+    \item Context length
+    \item Context window
+    \item System prompt
+    \item User prompt
+    \item Few-shot examples
+\end{itemize}
+
+\vspace{0.4cm}
+
+The model conditions generation on all tokens in the context window.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Zero-Shot Prompting}
+
+The model receives only the task instruction.
+
+\vspace{0.4cm}
+
+Example:
+
+\begin{quote}
+Classify the sentiment of the following review as positive or negative.
+\end{quote}
+
+\vspace{0.4cm}
+
+No examples are provided.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Few-Shot Prompting}
+
+Few-shot prompting provides examples in the prompt.
+
+\vspace{0.4cm}
+
+\begin{quote}
+Review: ``Great product.'' Sentiment: Positive
+
+Review: ``Very disappointing.'' Sentiment: Negative
+
+Review: ``I would buy it again.'' Sentiment:
+\end{quote}
+
+\vspace{0.4cm}
+
+The model learns the task pattern from context.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Chain-of-Thought Prompting}
+
+Chain-of-thought prompting asks the model to reason step by step.
+
+\vspace{0.4cm}
+
+Useful for:
+
+\begin{itemize}
+    \item Arithmetic reasoning
+    \item Logical reasoning
+    \item Multi-step planning
+    \item Complex question answering
+\end{itemize}
+
+\vspace{0.4cm}
+
+Important caveat: reasoning traces may be unreliable or post-hoc.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Prompting Is Programming by Context}
+
+Prompting can specify:
+
+\begin{itemize}
+    \item Role
+    \item Task
+    \item Constraints
+    \item Output format
+    \item Examples
+    \item Evaluation criteria
+\end{itemize}
+
+\vspace{0.4cm}
+
+Prompt design affects both performance and reliability.
+
+\end{frame}
+
+%------------------------------------------------
+\section{Inference Optimizations}
+
+\begin{frame}{Why Inference Optimization Matters}
+
+LLM inference is expensive because:
+
+\begin{itemize}
+    \item Models are large.
+    \item Generation is sequential.
+    \item Each new token depends on previous tokens.
+    \item Long contexts increase attention cost.
+\end{itemize}
+
+\vspace{0.4cm}
+
+Optimization is crucial for latency, throughput and cost.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{KV Cache}
+
+During autoregressive decoding, keys and values from previous tokens can be reused.
+
+\vspace{0.4cm}
+
+Without cache:
+
+\[
+\text{Recompute } K,V \text{ for all previous tokens at every step.}
+\]
+
+With cache:
+
+\[
+\text{Store previous } K,V \text{ and compute only the new token.}
+\]
+
+\vspace{0.4cm}
+
+KV caching greatly improves decoding efficiency.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Batching}
+
+Batching processes multiple requests together.
+
+\vspace{0.4cm}
+
+Benefits:
+
+\begin{itemize}
+    \item Better GPU utilization.
+    \item Higher throughput.
+    \item Lower cost per generated token.
+\end{itemize}
+
+\vspace{0.4cm}
+
+Challenge:
+
+\begin{itemize}
+    \item Requests have different lengths and finish at different times.
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Quantization}
+
+Quantization reduces numerical precision.
+
+\vspace{0.4cm}
+
+Examples:
+
+\begin{itemize}
+    \item FP16
+    \item BF16
+    \item INT8
+    \item INT4
+\end{itemize}
+
+\vspace{0.4cm}
+
+Tradeoff:
+
+\[
+\text{lower memory and faster inference}
+\quad
+\leftrightarrow
+\quad
+\text{possible quality degradation}
+\]
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Speculative Decoding}
+
+Speculative decoding uses a small draft model to propose tokens.
+
+\vspace{0.4cm}
+
+Process:
+
+\begin{enumerate}
+    \item Small model proposes several tokens.
+    \item Large model verifies them in parallel.
+    \item Accepted tokens are emitted.
+\end{enumerate}
+
+\vspace{0.4cm}
+
+Goal: reduce latency while preserving output distribution.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Key Takeaways}
+
+\begin{itemize}
+    \item Modern LLMs are usually decoder-only Transformers.
+    \item MoE increases parameter count using conditional computation.
+    \item LLMs generate text by next-token prediction.
+    \item Decoding strategy strongly affects output quality.
+    \item Temperature, top-$k$ and top-$p$ control diversity.
+    \item Guided decoding constrains outputs to valid formats.
+    \item Inference optimization is central to deploying LLMs.
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Suggested Reading}
+
+\begin{itemize}
+    \item Shazeer et al. (2017), \textit{Outrageously Large Neural Networks}
+    \item Fedus et al. (2021), \textit{Switch Transformers}
+    \item Jiang et al. (2024), \textit{Mixtral of Experts}
+    \item Holtzman et al. (2019), \textit{The Curious Case of Neural Text Degeneration}
+    \item Leviathan et al. (2023), \textit{Fast Inference from Transformers via Speculative Decoding}
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}
+\centering
+\Huge Questions?
+\end{frame}
+
+\end{document}

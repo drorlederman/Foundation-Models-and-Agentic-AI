@@ -1,7 +1,8 @@
-# Foundation Models and Agentic AI
-### Graduate Course Slides — Holon Institute of Technology (HIT)
+# Foundation Models: Architectures, Training, and Alignment
 
-A complete 13-week LaTeX Beamer slide project for an advanced M.Sc. course on foundation models and AI agents.
+**Graduate Course Lecture Slides** — Holon Institute of Technology (HIT), Data Science Department
+
+A comprehensive LaTeX Beamer course covering foundation models, large language models, scaling laws, training techniques, alignment methods, and evaluation strategies.
 
 ---
 
@@ -9,37 +10,24 @@ A complete 13-week LaTeX Beamer slide project for an advanced M.Sc. course on fo
 
 ```
 Foundation-Models-and-Agentic-AI/
-├── README.md
-├── main.tex                    # Master file (overview + bibliography)
-├── references.bib              # ~50 key papers
-├── .gitignore
+├── README.md                      # This file
 ├── shared/
-│   ├── preamble.tex            # All packages, theme, custom commands
-│   ├── macros.tex              # Math notation macros
-│   └── beamerthemeHIT.sty      # Custom HIT Beamer theme
-├── tikz/
-│   ├── scaling_laws.tex        # Log-log scaling law curves
-│   ├── transformer_arch.tex    # Encoder-decoder diagram
-│   ├── attention_head.tex      # Scaled dot-product attention
-│   ├── rlhf_pipeline.tex       # SFT → RM → PPO pipeline
-│   ├── rag_pipeline.tex        # RAG offline + online pipeline
-│   ├── agent_loop.tex          # ReAct Thought-Action-Observation cycle
-│   ├── multiagent_graph.tex    # Multi-agent communication graph
-│   └── memory_taxonomy.tex     # Agent memory taxonomy tree
-└── weeks/
-    ├── week01/week01.tex       # From Deep Learning to Foundation Models
-    ├── week02/week02.tex       # Transformer Architectures Revisited
-    ├── week03/week03.tex       # Training LLMs (SFT, RLHF, DPO)
-    ├── week04/week04.tex       # Multimodal Foundation Models
-    ├── week05/week05.tex       # Embeddings and Semantic Search
-    ├── week06/week06.tex       # Retrieval-Augmented Generation
-    ├── week07/week07.tex       # Foundations of Agentic AI
-    ├── week08/week08.tex       # Reasoning and Planning
-    ├── week09/week09.tex       # Memory in Agentic Systems
-    ├── week10/week10.tex       # Multi-Agent Systems
-    ├── week11/week11.tex       # Evaluation
-    ├── week12/week12.tex       # Safety, Security, and Alignment
-    └── week13/week13.tex       # Future Directions + Presentations
+│   ├── preamble.tex              # Common theme, packages, colors, commands
+│   └── macros.tex                # Mathematical notation macros
+└── lectures/
+    ├── lecture01/lecture01.tex    # Lecture 1: Foundation Models Paradigm
+    ├── lecture02/lecture02.tex    # Lecture 2: Scaling Laws & Optimal Training
+    ├── lecture03/lecture03.tex    # Lecture 3: Transformer Architectures
+    ├── lecture04/lecture04.tex    # Lecture 4: Large-Scale Pretraining
+    ├── lecture05/lecture05.tex    # Lecture 5: Efficient Fine-Tuning (LoRA)
+    ├── lecture06/lecture06.tex    # Lecture 6: Post-Training & Alignment Part A (RLHF)
+    ├── lecture07/lecture07.tex    # Lecture 7: Post-Training & Alignment Part B (DPO)
+    ├── lecture08/lecture08.tex    # Lecture 8: Reasoning Models
+    ├── lecture09/lecture09.tex    # Lecture 9: Multimodal Foundation Models
+    ├── lecture10/lecture10.tex    # Lecture 10: Vision Foundation Models
+    ├── lecture11/lecture11.tex    # Lecture 11: Knowledge-Augmented Models (RAG)
+    ├── lecture12/lecture12.tex    # Lecture 12: Evaluation, Safety, and Deployment
+    └── lecture13/lecture13.tex    # Lecture 13: Research Frontiers & Projects
 ```
 
 ---
@@ -47,174 +35,213 @@ Foundation-Models-and-Agentic-AI/
 ## Prerequisites
 
 ### LaTeX Distribution
-Install **TeX Live 2023+** (recommended) or **MiKTeX 23+**:
+
+Install **TeX Live 2023+** or **MiKTeX 23+**:
+
 - **Linux/macOS:** `sudo apt install texlive-full` or [tug.org/texlive](https://tug.org/texlive)
 - **Windows:** [MiKTeX](https://miktex.org/download) or [TeX Live](https://tug.org/texlive/windows.html)
 - **macOS (Homebrew):** `brew install --cask mactex`
 
-### Required Packages
-All packages are included in `texlive-full` / `texlive-latex-extra`. The following are used:
+### Required LaTeX Packages
+
+All packages below are included in `texlive-full` / `texlive-latex-extra`. Key packages:
 
 | Package | Purpose |
-|---|---|
+|---------|---------|
 | `beamer` | Presentation framework |
-| `beamerthememetropolis` | Modern Metropolis theme (fallback: AnnArbor) |
-| `amsmath`, `mathtools`, `bm` | Mathematics |
-| `algorithm`, `algpseudocode` | Pseudocode blocks |
-| `tikz`, `pgfplots` | Diagrams and charts |
-| `tcolorbox` | Callout/definition boxes |
-| `booktabs`, `tabularx` | Professional tables |
-| `natbib` | Bibliography (no Biber required) |
+| `amsmath`, `amssymb`, `mathtools` | Mathematics |
+| `tikz`, `pgfplots` | Diagrams and plots |
+| `tcolorbox` | Colored boxes for emphasis |
 | `listings` | Code display |
-
-### Installing Metropolis Theme (if not bundled)
-```bash
-# TeX Live
-tlmgr install beamer-theme-metropolis
-
-# MiKTeX (runs automatically on first compile)
-# Or manually: https://github.com/matze/mtheme
-```
+| `algorithm`, `algpseudocode` | Pseudocode |
+| `graphicx`, `hyperref` | Graphics and links |
 
 ---
 
-## Compiling Individual Weeks (Recommended)
+## Compiling Individual Lectures (Recommended)
 
-Each week file is a **standalone** Beamer document.
+Each lecture is a **standalone** Beamer document that can be compiled independently.
+
+### Method 1: `latexmk` (Automatic)
 
 ```bash
-# Compile a single week (with bibliography)
-cd weeks/week01
-pdflatex week01.tex
-bibtex week01
-pdflatex week01.tex
-pdflatex week01.tex    # Run twice to resolve references
+cd lectures/lecture01
+latexmk -pdf lecture01.tex
 ```
 
-Or with `latexmk` (handles reruns automatically):
+This automatically handles multiple compilation passes and bibliography updates.
+
+### Method 2: Manual (pdflatex)
+
 ```bash
-cd weeks/week01
-latexmk -pdf week01.tex
+cd lectures/lecture01
+pdflatex lecture01.tex
+pdflatex lecture01.tex          # Run twice to resolve references
 ```
 
-Output: `weeks/week01/week01.pdf`
+**Output:** `lectures/lecture01/lecture01.pdf`
 
-### Batch-Compile All Weeks (Bash/PowerShell)
+---
 
-**Bash (Linux/macOS):**
+## Batch-Compiling All Lectures
+
+### Bash/Zsh (Linux/macOS)
+
 ```bash
-for i in $(seq -w 1 13); do
-  echo "Compiling week${i}..."
-  cd weeks/week${i}
-  latexmk -pdf week${i}.tex
+#!/bin/bash
+for i in {01..13}; do
+  echo "Compiling lecture$i..."
+  cd "lectures/lecture$i"
+  latexmk -pdf "lecture$i.tex"
   cd ../..
 done
+echo "All lectures compiled!"
 ```
 
-**PowerShell (Windows):**
+### PowerShell (Windows)
+
 ```powershell
 for ($i = 1; $i -le 13; $i++) {
-  $week = "week{0:D2}" -f $i
-  Write-Host "Compiling $week..."
-  Set-Location "weeks/$week"
-  latexmk -pdf "$week.tex"
-  Set-Location "../.."
+  $num = "{0:D2}" -f $i
+  Write-Host "Compiling lecture$num..."
+  Set-Location "lectures/lecture$num"
+  latexmk -pdf "lecture$num.tex"
+  Set-Location ../..
 }
+Write-Host "All lectures compiled!"
 ```
-
----
-
-## Compiling the Full Course (main.tex)
-
-`main.tex` provides a course overview slide and a combined bibliography.
-To include all 13 weeks in a single PDF, use one of two approaches:
-
-### Option A: pdfpages (simplest — requires weekly PDFs first)
-1. Compile all 13 weeks individually (see above).
-2. Uncomment the `\includepdf` lines in `main.tex`.
-3. Run `pdflatex main.tex`.
-
-### Option B: subfiles (cleaner — requires file restructuring)
-Restructure each `weekNN.tex` to use the `subfiles` package:
-1. Replace `\documentclass[aspectratio=169,10pt]{beamer}` with `\documentclass[../../main.tex]{subfiles}`.
-2. Remove the `\input{../../shared/preamble}` line (inherited from main).
-3. In `main.tex`, uncomment the `\subfile{weeks/weekNN/weekNN}` lines.
-4. Run `latexmk -pdf main.tex`.
-
----
-
-## Speaker Notes
-
-Speaker notes are defined with `\note{...}` in each frame.
-They are **hidden by default**. To show them on a second screen:
-
-1. In `shared/preamble.tex`, change `\shownotesfalse` to `\shownotestrue`.
-2. Uncomment the line:
-   ```latex
-   \setbeameroption{show notes on second screen=right}
-   ```
-3. Recompile. Use a dual-screen PDF presenter (e.g., Pympress, DualScreenPDF).
 
 ---
 
 ## Customization
 
 ### Changing the Theme
-In `shared/beamerthemeHIT.sty`:
-- To use AnnArbor explicitly: comment out the Metropolis block.
-- To use another built-in theme: replace `\usetheme{metropolis}` with e.g. `\usetheme{Madrid}`.
 
-### Changing Colors
-In `shared/beamerthemeHIT.sty`, modify:
+Edit `shared/preamble.tex`:
+
 ```latex
-\definecolor{hitblue}{RGB}{0,51,102}    % Primary color
-\definecolor{hitgold}{RGB}{192,148,0}   % Accent color
+\usetheme{Madrid}         # Change to: Metropolis, AnnArbor, Singapore, etc.
+\usecolortheme{default}   # Change to: albatross, beaver, dove, etc.
 ```
+
+### Changing HIT Colors
+
+Edit `shared/preamble.tex` to modify:
+
+```latex
+\definecolor{hitblue}{RGB}{0,51,102}        % Primary color
+\definecolor{hitgold}{RGB}{192,148,0}       % Accent color
+\definecolor{hitlight}{RGB}{230,240,250}    % Background
+```
+
+### Adding Custom Macros
+
+Add new mathematical notation to `shared/macros.tex`:
+
+```latex
+\newcommand{\myop}{\mathrm{MyOp}}
+```
+
+Then use in any lecture: `\myop`
 
 ### Adding Figures
-Replace `\placeholder{width}{height}{caption}` with:
-```latex
-\includegraphics[width=0.8\textwidth]{figures/my_figure.png}
-```
 
-### Modifying Macros
-Add course-specific notation in `shared/macros.tex`.
+Replace placeholders with real figures:
+
+```latex
+% Before (placeholder):
+\placeholder{0.8\textwidth}{4cm}{Model Architecture}
+
+% After (real figure):
+\includegraphics[width=0.8\textwidth]{figures/architecture.png}
+```
 
 ---
 
-## Weekly Content Summary
+## Lecture Overview
 
-| Week | Title | Key Papers |
-|---|---|---|
-| 1 | From Deep Learning to Foundation Models | Bommasani 2021, Kaplan 2020, Hoffmann 2022 |
-| 2 | Transformer Architectures Revisited | Vaswani 2017, Su 2024 (RoPE), Press 2022 (ALiBi) |
-| 3 | Training LLMs | Ouyang 2022 (RLHF), Rafailov 2023 (DPO) |
-| 4 | Multimodal Foundation Models | Radford 2021 (CLIP), Alayrac 2022 (Flamingo) |
-| 5 | Embeddings and Semantic Search | Reimers 2019 (SBERT), Karpukhin 2020 (DPR) |
-| 6 | Retrieval-Augmented Generation | Lewis 2020 (RAG), Asai 2023 (Self-RAG) |
-| 7 | Foundations of Agentic AI | Yao 2023 (ReAct), Schick 2023 (Toolformer) |
-| 8 | Reasoning and Planning | Wei 2022 (CoT), Yao 2023 (ToT), Shinn 2023 (Reflexion) |
-| 9 | Memory in Agentic Systems | Park 2023 (Gen. Agents), Packer 2023 (MemGPT) |
-| 10 | Multi-Agent Systems | Wu 2023 (AutoGen), Hong 2023 (MetaGPT) |
-| 11 | Evaluation | Hendrycks 2021 (MMLU), Min 2023 (FActScore) |
-| 12 | Safety, Security, Alignment | OWASP 2023, NIST AI RMF, Wei 2023 |
-| 13 | Future Directions + Presentations | Lu 2024 (AI Scientist) |
+| Lecture | Topic | Key Papers |
+|---------|-------|-----------|
+| 1 | Foundation Models Paradigm | Bommasani et al.\ (2021) |
+| 2 | Scaling Laws & Optimal Training | Kaplan et al., Hoffmann et al. |
+| 3 | Transformer Architectures | Vaswani et al., Dao et al., Fedus et al. |
+| 4 | Large-Scale Pretraining | Brown et al., Devlin et al. |
+| 5 | Efficient Fine-Tuning | Hu et al. (LoRA), Dettmers et al. (QLoRA) |
+| 6 | RLHF & Alignment Part A | Ouyang et al. (2022) |
+| 7 | DPO & Alignment Part B | Rafailov et al. (2023), Bai et al. |
+| 8 | Reasoning Models | Wei et al. (CoT), Yao et al. (ToT) |
+| 9 | Multimodal Models | Radford et al. (CLIP), Alayrac et al. (Flamingo) |
+| 10 | Vision Foundation Models | Dosovitskiy et al. (ViT), Oquab et al. (DINOv2) |
+| 11 | Knowledge-Augmented (RAG) | Lewis et al., Asai et al. (Self-RAG) |
+| 12 | Evaluation & Safety | Liang et al. (HELM), OWASP/NIST |
+| 13 | Research Frontiers & Projects | Open problems, student presentations |
+
+---
+
+## Grading (Course Structure)
+
+| Component | Weight |
+|-----------|--------|
+| Two Technical Assignments | 20% |
+| Paper Presentation (Lecture 8) | 15% |
+| Final Project | 35% |
+| Final Exam | 30% |
+
+---
+
+## Key Resources
+
+### Canonical Papers
+
+1. **Bommasani et al.** (2021). "On the Opportunities and Risks of Foundation Models." arXiv:2108.07258.
+2. **Kaplan et al.** (2020). "Scaling Laws for Neural Language Models." arXiv:2001.08361.
+3. **Hoffmann et al.** (2022). "Training Compute-Optimal Large Language Models." arXiv:2203.15556.
+4. **Vaswani et al.** (2017). "Attention is All You Need." NeurIPS.
+5. **Ouyang et al.** (2022). "Training Language Models to Follow Instructions with Human Feedback." NeurIPS.
+6. **Rafailov et al.** (2023). "Direct Preference Optimization: Your Language Model is Secretly a Reward Model." NeurIPS.
+
+### Open Models to Experiment With
+
+- **Llama 3** (Meta) — Open-source, state-of-the-art
+- **Mistral 7B** (Mistral AI) — Efficient, high-quality
+- **Qwen** (Alibaba) — Multilingual, strong performance
+- **OpenAI GPT-4** — API-based, frontier model
+- **Anthropic Claude** — API-based, strong reasoning
 
 ---
 
 ## Troubleshooting
 
-| Problem | Solution |
-|---|---|
-| `beamerthememetropolis.sty not found` | `tlmgr install beamer-theme-metropolis` or the theme auto-falls back to AnnArbor |
-| `FiraSans not found` | Install `fonts-firacode` (Linux) or the Metropolis fonts package |
-| `Citation undefined` | Run `bibtex weekNN` then `pdflatex` twice |
-| `TikZ library not found` | Run `tlmgr install pgf` to update pgf/TikZ |
-| Blank slides on first compile | Always run LaTeX at least twice (aux files needed) |
+| Issue | Solution |
+|-------|----------|
+| `! Undefined control sequence \softmax` | Make sure `shared/macros.tex` is loaded via preamble |
+| `! File 'beamer.cls' not found` | Install TeX Live or check PATH |
+| `! I can't find file 'preamble.tex'` | Compile from `lectures/lectureNN/` directory using relative paths |
+| Blank PDFs or missing content | Run `pdflatex` twice (second pass resolves references) |
+| Color not appearing | Ensure `\definecolor` commands are before `\setbeamercolor` |
+
+---
+
+## Tips for Instructors
+
+1. **Modify titles and metadata** in each `lectureNN.tex` as needed.
+2. **Add speaker notes** using `\note{...}` before `\end{frame}`.
+3. **Replace `\placeholder{}`** with actual figures as you prepare.
+4. **Adjust difficulty** by including/excluding advanced slides.
+5. **Keep synchronous** with the course syllabus.
 
 ---
 
 ## License
 
-Course materials — © Lecturer Name, HIT. For educational use.
-Key paper citations belong to their respective authors.
+Course materials © Lecturer. For educational use at HIT.
+
+References to papers belong to their respective authors and publishers.
+
+---
+
+## Questions?
+
+Contact: dror.lederman@constrol.net
+
+Office hours: By appointment (see course Moodle page)

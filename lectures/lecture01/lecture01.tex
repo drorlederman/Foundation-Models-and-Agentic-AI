@@ -1,0 +1,596 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+
+% Load shared preamble with theme, colors, and packages
+\input{../../shared/preamble}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% LECTURE-SPECIFIC METADATA
+% ─────────────────────────────────────────────────────────────────────────────
+\title{Foundation Models: Paradigm, Capabilities, and Risks}
+\subtitle{Lecture 1: From Deep Learning to Foundation Models}
+\author[D. Lederman]{Dror Lederman}
+\institute{Holon Institute of Technology (HIT)}
+\date{Semester 2025}
+
+\begin{document}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% TITLE SLIDE
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{frame}
+  \titlepage
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% LEARNING OBJECTIVES
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{frame}{Learning Objectives}
+  By the end of this lecture, you will be able to:
+
+  \begin{itemize}
+    \item Define \textbf{Foundation Models} and understand their paradigm.
+    \item Trace the evolution of \textbf{transfer learning} in deep learning.
+    \item Identify and explain \textbf{emergent capabilities} in large models.
+    \item Analyze the role of \textbf{scaling laws} in model performance.
+    \item Evaluate both \textbf{opportunities and risks} of Foundation Models.
+    \item Understand the course structure and grading components.
+  \end{itemize}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% COURSE ROADMAP
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{frame}{Course Roadmap: Foundation Models}
+  \begin{center}
+    \small
+    \begin{tabular}{lll}
+      \toprule
+      \textbf{Weeks} & \textbf{Module} & \textbf{Topics} \\
+      \midrule
+      1--3 & \textbf{Foundations} & Paradigm, Scaling Laws, Architectures \\
+      4--6 & \textbf{Training \& Adaptation} & Pretraining, Fine-Tuning, Alignment \\
+      7--9 & \textbf{Capabilities} & Reasoning, Multimodal, Retrieval \\
+      10--12 & \textbf{Reliability} & Evaluation, Safety, Deployment \\
+      13 & \textbf{Synthesis} & Open Problems, Projects \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+
+  \vspace{0.4cm}
+
+  \textbf{Key Papers:} Bommasani 2021, Kaplan 2020, Ouyang 2022, Rafailov 2023, Lewis 2020, OWASP/NIST 2023
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% GRADING BREAKDOWN
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{frame}{Grading Breakdown}
+  \begin{center}
+    \Large
+    \begin{tabular}{lc}
+      \toprule
+      \textbf{Component} & \textbf{Weight} \\
+      \midrule
+      Two Technical Assignments & 20\% \\
+      Paper Presentation & 15\% \\
+      Final Project & 35\% \\
+      Exam & 30\% \\
+      \bottomrule
+      \textbf{Total} & \textbf{100\%} \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% SECTION: WHAT ARE FOUNDATION MODELS?
+% ─────────────────────────────────────────────────────────────────────────────
+\sectionframe{What Are Foundation Models?}{Defining the paradigm shift}
+
+\begin{frame}{The Modern AI Landscape}
+  \begin{columns}[T]
+    \column{0.50\textwidth}
+      \textbf{Traditional ML Approach:}
+      \begin{itemize}
+        \item Task-specific models
+        \item Labeled datasets for each task
+        \item Fine-tuning from scratch
+        \item Limited generalization
+      \end{itemize}
+
+    \column{0.48\textwidth}
+      \textbf{Foundation Models Approach:}
+      \begin{itemize}
+        \item One large model, many tasks
+        \item Large unlabeled data at scale
+        \item Prompt or light fine-tuning
+        \item Surprising generalization
+      \end{itemize}
+  \end{columns}
+
+  \vspace{0.4cm}
+
+  \begin{tcolorbox}[hitbox, title=The Paradigm Shift]
+    From task-specific models to \textbf{general-purpose foundation models}.
+  \end{tcolorbox}
+\end{frame}
+
+\begin{frame}{Definition: Foundation Models}
+  \textbf{Bommasani et al.\ (2021)}
+
+  \vspace{0.3cm}
+
+  \begin{tcolorbox}[hitbox, title=Foundation Model]
+    A model trained on \textbf{broad data} at \textbf{scale} such that it can be adapted
+    (fine-tuned) to a wide range of downstream tasks.
+  \end{tcolorbox}
+
+  \vspace{0.4cm}
+
+  \textbf{Key Characteristics:}
+
+  \begin{enumerate}
+    \item \textbf{Trained on broad data} — text, images, code, etc., not task-specific.
+    \item \textbf{Large scale} — billions of parameters, trillions of tokens.
+    \item \textbf{Adaptable} — can be fine-tuned, prompted, or used as-is.
+    \item \textbf{General-purpose} — performs well across many downstream tasks.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Examples of Foundation Models}
+  \begin{center}
+    \begin{tabular}{lll}
+      \toprule
+      \textbf{Model} & \textbf{Release} & \textbf{Key Property} \\
+      \midrule
+      BERT & 2018 & Masked language modeling \\
+      GPT-3 & 2020 & Few-shot in-context learning \\
+      CLIP & 2021 & Vision-language alignment \\
+      ChatGPT & 2022 & Instruction-following at scale \\
+      GPT-4 & 2023 & Multimodal, reasoning \\
+      Llama 3 & 2024 & Open-source, efficient \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+
+  \vspace{0.3cm}
+
+  \textit{These models differ in architecture, training data, and alignment, but share the foundation model paradigm.}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% SECTION: TRANSFER LEARNING EVOLUTION
+% ─────────────────────────────────────────────────────────────────────────────
+\sectionframe{Transfer Learning Evolution}{From ImageNet to Foundation Models}
+
+\begin{frame}{Transfer Learning Timeline}
+  \begin{enumerate}
+    \item[\textbf{Phase 1}] \textbf{Task-Specific Models} (pre-2012)
+      \begin{itemize}
+        \item Hand-crafted features, limited reuse.
+      \end{itemize}
+
+    \vspace{0.2cm}
+
+    \item[\textbf{Phase 2}] \textbf{Pretrain-Finetune} (2012--2019)
+      \begin{itemize}
+        \item ImageNet pretraining for vision, fine-tune for tasks.
+        \item BERT, ELMo: pretraining on raw text.
+      \end{itemize}
+
+    \vspace{0.2cm}
+
+    \item[\textbf{Phase 3}] \textbf{Foundation Models} (2020+)
+      \begin{itemize}
+        \item Scale to billions of parameters and trillions of tokens.
+        \item In-context learning, prompting, few-shot adaptation.
+      \end{itemize}
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{From ImageNet to Language Foundations}
+  \begin{columns}[T]
+    \column{0.50\textwidth}
+      \textbf{Vision (2012 onwards):}
+      \begin{itemize}
+        \item AlexNet wins ImageNet.
+        \item Pretraining + fine-tuning becomes standard.
+        \item Transfer learning is the norm.
+      \end{itemize}
+
+    \column{0.48\textwidth}
+      \textbf{Language (2018 onwards):}
+      \begin{itemize}
+        \item BERT: bidirectional pretraining.
+        \item GPT: autoregressive pretraining.
+        \item Scale up: from 100M to 100B+ parameters.
+      \end{itemize}
+  \end{columns}
+
+  \vspace{0.4cm}
+
+  \textbf{Lesson:} Transfer learning works because:
+  \begin{itemize}
+    \item General patterns emerge at scale.
+    \item Language and vision share low-level and high-level structure.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{The Scaling Hypothesis}
+  \textbf{Core Insight:} Larger models perform better.
+
+  \vspace{0.4cm}
+
+  \begin{tcolorbox}[hitbox, title=Scaling Laws]
+    Model performance improves predictably with:
+    \begin{itemize}
+      \item Number of parameters (model size)
+      \item Amount of training data
+      \item Compute budget
+    \end{itemize}
+  \end{tcolorbox}
+
+  \vspace{0.3cm}
+
+  \textbf{Key References:}
+  \begin{itemize}
+    \item Kaplan et al.\ (2020): Scaling Laws for Language Models
+    \item Hoffmann et al.\ (2022): Chinchilla Rule (optimal balance)
+  \end{itemize}
+
+  \textit{These will be covered in detail in Lecture 2.}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% SECTION: EMERGENT CAPABILITIES
+% ─────────────────────────────────────────────────────────────────────────────
+\sectionframe{Emergent Capabilities}{Abilities that appear at scale}
+
+\begin{frame}{What Are Emergent Capabilities?}
+  \begin{tcolorbox}[alertbox, title=Emergence]
+    Capabilities that appear at larger scales but are absent or negligible in smaller models.
+  \end{tcolorbox}
+
+  \vspace{0.4cm}
+
+  \textbf{Examples:}
+  \begin{itemize}
+    \item \textbf{In-context learning}: Models learn from examples in the prompt.
+    \item \textbf{Chain-of-thought reasoning}: Breaking problems into steps.
+    \item \textbf{Instruction following}: Understanding varied instructions without fine-tuning.
+    \item \textbf{Common sense}: Reasoning about the real world.
+  \end{itemize}
+
+  \vspace{0.3cm}
+
+  \textit{Key paper:} Wei et al.\ (2022): Emergent Abilities of Large Language Models
+\end{frame}
+
+\begin{frame}{In-Context Learning Example}
+  \textbf{Prompt:}
+  \begin{quote}
+    \small
+    English to French:\\
+    ``Hello'' → ``Bonjour''\\
+    ``Good morning'' → ``Bon matin''\\
+    ``How are you?'' → ?
+  \end{quote}
+
+  \vspace{0.3cm}
+
+  \textbf{Small model (125M):}
+  \begin{quote}
+    \small
+    Output: Confused, random tokens.
+  \end{quote}
+
+  \vspace{0.2cm}
+
+  \textbf{Large model (175B, GPT-3):}
+  \begin{quote}
+    \small
+    Output: ``Comment allez-vous?'' (correct!)
+  \end{quote}
+
+  \vspace{0.3cm}
+
+  \textit{The model ``learns'' from examples without gradient updates—purely from the context.}
+\end{frame}
+
+\begin{frame}{Why Emergence Matters}
+  \begin{tcolorbox}[hitbox, title=Paradigm Implications]
+    If capabilities emerge unpredictably at scale, we must:
+    \begin{enumerate}
+      \item Invest in scale to discover new abilities.
+      \item Prepare for unexpected behavior.
+      \item Develop evaluation methods to detect capabilities.
+      \item Design safety measures for unknown risks.
+    \end{enumerate}
+  \end{tcolorbox}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% SECTION: OPPORTUNITIES
+% ─────────────────────────────────────────────────────────────────────────────
+\sectionframe{Opportunities}{Why Foundation Models Matter}
+
+\begin{frame}{Opportunities: Knowledge Work}
+  \begin{columns}[T]
+    \column{0.50\textwidth}
+      \textbf{Writing \& Content:}
+      \begin{itemize}
+        \item Email drafting
+        \item Code generation
+        \item Documentation
+        \item Research assistance
+      \end{itemize}
+
+    \column{0.48\textwidth}
+      \textbf{Analysis \& Decision:}
+      \begin{itemize}
+        \item Data summarization
+        \item Question answering
+        \item Medical diagnosis
+        \item Legal research
+      \end{itemize}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Opportunities: Democratization}
+  \begin{tcolorbox}[hitbox, title=Access \& Democratization]
+    Foundation models lower barriers to entry:
+    \begin{itemize}
+      \item Open-source models (Llama, Mistral, Falcon)
+      \item API access (ChatGPT, Claude, Gemini)
+      \item Fine-tuning tools (LoRA, QLoRA)
+      \item Reduced need for ML expertise per task.
+    \end{itemize}
+  \end{tcolorbox}
+
+  \vspace{0.3cm}
+
+  \textit{A person with coding skills can now build AI applications without ML training.}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% SECTION: RISKS & CHALLENGES
+% ─────────────────────────────────────────────────────────────────────────────
+\sectionframe{Risks \& Challenges}{The Dark Side of Scale}
+
+\begin{frame}{Risk 1: Bias \& Fairness}
+  \textbf{Problem:}
+  Training on broad data captures societal biases.
+
+  \vspace{0.3cm}
+
+  \textbf{Examples:}
+  \begin{itemize}
+    \item Gender bias in word associations.
+    \item Racial bias in image generation.
+    \item Cultural stereotypes in text generation.
+  \end{itemize}
+
+  \vspace{0.3cm}
+
+  \textbf{Scale Effect:} Larger models amplify biases across more use cases.
+\end{frame}
+
+\begin{frame}{Risk 2: Hallucinations \& Misinformation}
+  \textbf{Problem:}
+  Models generate plausible-sounding but false information.
+
+  \vspace{0.3cm}
+
+  \textbf{Examples:}
+  \begin{itemize}
+    \item Fabricating citations and sources.
+    \item Inventing historical facts.
+    \item Confidently explaining wrong concepts.
+  \end{itemize}
+
+  \vspace{0.3cm}
+
+  \textbf{Challenge:} No easy way to prevent without sacrificing capability.
+\end{frame}
+
+\begin{frame}{Risk 3: Safety \& Misuse}
+  \textbf{Misuse Scenarios:}
+  \begin{itemize}
+    \item Automated generation of malware, phishing, propaganda.
+    \item Impersonation and deepfakes.
+    \item Unauthorized access to sensitive information.
+  \end{itemize}
+
+  \vspace{0.3cm}
+
+  \textbf{Alignment Challenge:}
+  Models trained to be ``helpful'' can be manipulated by adversarial prompts.
+
+  \vspace{0.3cm}
+
+  \textit{Mitigation requires both technical safeguards and governance.}
+\end{frame}
+
+\begin{frame}{Risk 4: Environmental \& Computational Cost}
+  \textbf{Training a Large Model:}
+  \begin{itemize}
+    \item Millions of GPU/TPU hours
+    \item Hundreds of thousands of dollars
+    \item Significant carbon footprint
+  \end{itemize}
+
+  \vspace{0.3cm}
+
+  \textbf{Inference Cost:}
+  \begin{itemize}
+    \item Each token costs computation.
+    \item High-volume services accumulate costs and carbon.
+  \end{itemize}
+
+  \vspace{0.3cm}
+
+  \textit{Efficiency and sustainable ML are active research areas.}
+\end{frame}
+
+\begin{frame}{Risk 5: Concentration \& Power}
+  \textbf{Who Can Build?}
+  \begin{itemize}
+    \item Frontier models require billions in compute and data.
+    \item Accessible only to large labs (OpenAI, Google, Meta, etc.)
+    \item Creates power concentration in AI development.
+  \end{itemize}
+
+  \vspace{0.3cm}
+
+  \textbf{Implications:}
+  \begin{itemize}
+    \item A few organizations shape AI direction globally.
+    \item Economic moat: hard for startups to compete.
+    \item Governance challenges: who sets norms?
+  \end{itemize}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% SECTION: THE COURSE AHEAD
+% ─────────────────────────────────────────────────────────────────────────────
+\sectionframe{What We'll Learn}{A deep dive into foundation models}
+
+\begin{frame}{Topics by Module}
+  \begin{columns}[T]
+    \column{0.50\textwidth}
+      \textbf{Module 1: Foundations (Weeks 1--3)}
+      \begin{enumerate}
+        \item Foundation Models Paradigm (this lecture)
+        \item Scaling Laws \& Optimal Training
+        \item Transformer Architectures
+      \end{enumerate}
+
+    \column{0.48\textwidth}
+      \textbf{Module 2: Training (Weeks 4--7)}
+      \begin{enumerate}
+        \setcounter{enumi}{3}
+        \item Large-Scale Pretraining
+        \item Efficient Adaptation (LoRA, etc.)
+        \item Alignment (RLHF, DPO)
+      \end{enumerate}
+  \end{columns}
+
+  \vspace{0.3cm}
+
+  \begin{columns}[T]
+    \column{0.50\textwidth}
+      \textbf{Module 3: Capabilities (Weeks 8--10)}
+      \begin{enumerate}
+        \setcounter{enumi}{6}
+        \item Reasoning \& Planning
+        \item Multimodal Models
+        \item Knowledge-Augmented Models
+      \end{enumerate}
+
+    \column{0.48\textwidth}
+      \textbf{Module 4: Reliability (Weeks 11--13)}
+      \begin{enumerate}
+        \setcounter{enumi}{9}
+        \item Evaluation \& Benchmarks
+        \item Safety \& Security
+        \item Future Directions
+      \end{enumerate}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{How We'll Learn}
+  \textbf{Format:}
+  \begin{itemize}
+    \item \textbf{Lectures} — concepts, theory, key papers
+    \item \textbf{Readings} — original papers (we'll discuss key ones)
+    \item \textbf{Assignments} — hands-on with models (Llama, OpenAI API)
+    \item \textbf{Project} — design and evaluate your own system
+  \end{itemize}
+
+  \vspace{0.3cm}
+
+  \textbf{Prerequisites Assumed:}
+  \begin{itemize}
+    \item Deep learning fundamentals (CNNs, RNNs, basic Transformers)
+    \item NLP basics (tokenization, embeddings)
+    \item Python for machine learning
+  \end{itemize}
+
+  \vspace{0.3cm}
+
+  \textit{If rusty, come to office hours or review Week 0 materials.}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% DISCUSSION
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{frame}{Discussion: Foundation Models in 5 Years}
+  \begin{enumerate}
+    \item Where do you think foundation models will have the \textbf{most impact}?
+    \item What \textbf{risks} worry you most?
+    \item Should governments \textbf{regulate} foundation models?
+    \item How will \textbf{safety} and \textbf{capability} balance out?
+  \end{enumerate}
+
+  \vspace{0.3cm}
+
+  \textit{No right answers---think critically about the implications.}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% KEY TAKEAWAYS
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{frame}{Key Takeaways}
+  \begin{tcolorbox}[hitbox, title=Summary]
+    \begin{enumerate}
+      \item \textbf{Foundation Models} are large, general-purpose models trained on broad data.
+      \item They represent a paradigm shift from task-specific to general-purpose AI.
+      \item \textbf{Emergent capabilities} appear unpredictably at scale.
+      \item \textbf{Opportunities} are immense: democratization, new capabilities.
+      \item \textbf{Risks} are real: bias, hallucination, misuse, environmental impact, concentration.
+      \item This course will cover architecture, training, adaptation, and evaluation.
+    \end{enumerate}
+  \end{tcolorbox}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% NEXT LECTURE
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{frame}{Next Lecture}
+  \Large
+  \textbf{Lecture 2: Scaling Laws \& Optimal Training}
+
+  \vspace{0.5cm}
+
+  Topics:
+  \begin{itemize}
+    \item Power laws of model performance
+    \item Compute-optimal training (Chinchilla rule)
+    \item Balancing model size, data, and compute
+    \item Implications for your own projects
+  \end{itemize}
+
+  \vspace{0.5cm}
+
+  \textbf{Reading:}
+  \begin{itemize}
+    \item Kaplan et al.\ (2020): Scaling Laws for Language Models
+    \item Hoffmann et al.\ (2022): Training Compute-Optimal LLMs
+  \end{itemize}
+\end{frame}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% CLOSING
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{frame}
+  \centering
+  \Huge
+  Questions?
+
+  \vspace{0.5cm}
+
+  \normalsize
+  \textit{dror.lederman@constrol.net}
+\end{frame}
+
+\end{document}

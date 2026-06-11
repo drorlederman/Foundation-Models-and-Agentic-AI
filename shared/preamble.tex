@@ -1,164 +1,143 @@
-% shared/preamble.tex
-% Central preamble for "Foundation Models and Agentic AI" course slides.
-% Every week file does: \input{../../shared/preamble}
+% ═══════════════════════════════════════════════════════════════════════════════
+% SHARED PREAMBLE — Foundation Models Course (HIT)
+% To be \input by each lecture file AFTER \documentclass
+% ═══════════════════════════════════════════════════════════════════════════════
 
-% ── Document class (set by the including file) ────────────────────────────────
-% \documentclass[aspectratio=169, 10pt]{beamer}  % set in each weekNN.tex
+% ─────────────────────────────────────────────────────────────────────────────
+% BEAMER THEME & BASIC SETUP
+% ─────────────────────────────────────────────────────────────────────────────
+\usetheme{Madrid}
+\usecolortheme{default}
 
-% ── Theme ─────────────────────────────────────────────────────────────────────
-\usepackage{../../shared/beamerthemeHIT}
+% Remove navigation symbols
+\beamertemplatenavigationsymbolsempty
 
-% ── Encoding & fonts ──────────────────────────────────────────────────────────
-\usepackage[T1]{fontenc}
-\usepackage[utf8]{inputenc}
-\usepackage{microtype}
+% ─────────────────────────────────────────────────────────────────────────────
+% COLORS — HIT Branding
+% ─────────────────────────────────────────────────────────────────────────────
+\definecolor{hitblue}{RGB}{0,51,102}        % Primary: HIT Navy
+\definecolor{hitgold}{RGB}{192,148,0}       % Accent: HIT Gold
+\definecolor{hitlight}{RGB}{230,240,250}    % Light background
 
-% ── Mathematics ───────────────────────────────────────────────────────────────
+% Override Beamer palette
+\setbeamercolor{primary}{fg=white,bg=hitblue}
+\setbeamercolor{secondary}{fg=hitblue,bg=hitlight}
+\setbeamercolor{structure}{fg=hitblue}
+\setbeamercolor{alerted text}{fg=hitgold}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% PACKAGES
+% ─────────────────────────────────────────────────────────────────────────────
 \usepackage{amsmath}
 \usepackage{amssymb}
-\usepackage{amsthm}
-\usepackage{mathtools}          % \coloneqq, \DeclarePairedDelimiter, etc.
-\usepackage{bm}                 % \bm{} bold math
-
-% ── Algorithms & pseudocode ───────────────────────────────────────────────────
-\usepackage{algorithm}
-\usepackage{algpseudocode}      % part of algorithmicx
-\algrenewcommand\algorithmicrequire{\textbf{Input:}}
-\algrenewcommand\algorithmicensure{\textbf{Output:}}
-
-% ── Code listings ─────────────────────────────────────────────────────────────
-\usepackage{listings}
-\lstset{
-  basicstyle=\ttfamily\footnotesize,
-  breaklines=true,
-  frame=single,
-  backgroundcolor=\color{gray!8},
-  keywordstyle=\color{hitblue}\bfseries,
-  commentstyle=\color{gray},
-  stringstyle=\color{hitalert},
-  numbers=left,
-  numberstyle=\tiny\color{gray},
-  xleftmargin=1em,
-}
-
-% ── Graphics & diagrams ───────────────────────────────────────────────────────
-\usepackage{graphicx}
-\usepackage{subcaption}
-\usepackage{tikz}
-\usetikzlibrary{
-  arrows.meta,
-  positioning,
-  calc,
-  shapes.geometric,
-  shapes.multipart,
-  fit,
-  backgrounds,
-  decorations.pathreplacing,
-  decorations.markings,
-  matrix,
-  graphs,
-  mindmap,
-  trees,
-}
-\usepackage{pgfplots}
-\pgfplotsset{compat=newest}
-
-% ── Tables ────────────────────────────────────────────────────────────────────
+\usepackage{mathtools}
 \usepackage{booktabs}
-\usepackage{tabularx}
-\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usepackage{tcolorbox}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
 
-% ── Callout boxes ─────────────────────────────────────────────────────────────
-\usepackage[most]{tcolorbox}
+% ─────────────────────────────────────────────────────────────────────────────
+% TikZ LIBRARIES
+% ─────────────────────────────────────────────────────────────────────────────
+\usetikzlibrary{shapes,arrows,positioning,calc,chains,scopes}
+\pgfplotsset{compat=1.17}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% CODE LISTINGS
+% ─────────────────────────────────────────────────────────────────────────────
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  commentstyle=\color{gray},
+  keywordstyle=\color{hitblue},
+  stringstyle=\color{hitgold},
+  showstringspaces=false,
+  backgroundcolor=\color{hitlight},
+  frame=single,
+  rulecolor=\color{hitblue}
+}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% TCOLORBOX STYLES
+% ─────────────────────────────────────────────────────────────────────────────
 \tcbset{
   hitbox/.style={
-    colback=hitlightblue,
+    colback=hitlight,
     colframe=hitblue,
     fonttitle=\bfseries,
-    sharp corners,
-    boxrule=0.8pt,
-    left=4pt, right=4pt, top=3pt, bottom=3pt,
+    boxrule=1pt
   },
   alertbox/.style={
-    colback=hitalert!8,
-    colframe=hitalert,
+    colback=yellow!10,
+    colframe=hitgold,
     fonttitle=\bfseries,
-    sharp corners,
-    boxrule=0.8pt,
-    left=4pt, right=4pt, top=3pt, bottom=3pt,
-  },
+    boxrule=1.5pt
+  }
 }
 
-% ── Utilities ─────────────────────────────────────────────────────────────────
-\usepackage{xcolor}
-\usepackage{soul}               % \hl{} highlighting
-\usepackage{csquotes}
-\usepackage{xifthen}
-\usepackage{appendixnumberbeamer}
+% ─────────────────────────────────────────────────────────────────────────────
+% CUSTOM COMMANDS
+% ─────────────────────────────────────────────────────────────────────────────
 
-% ── Bibliography ─────────────────────────────────────────────────────────────
-\usepackage[numbers,sort&compress]{natbib}
-\bibliographystyle{abbrv}
-
-% ── Hyperref (Beamer loads it; just configure) ────────────────────────────────
-\hypersetup{
-  colorlinks=true,
-  linkcolor=hitblue,
-  citecolor=hitblue!70!black,
-  urlcolor=hitblue,
-}
-
-% ── Speaker notes toggle ──────────────────────────────────────────────────────
-\newif\ifshownotes
-\shownotesfalse   % set to \shownotestrue to reveal speaker notes
-% \ifshownotes \setbeameroption{show notes on second screen=right} \fi
-
-% ── Custom commands ───────────────────────────────────────────────────────────
-
-% Figure placeholder: \placeholder{width}{height}{caption}
-\newcommand{\placeholder}[3]{%
+% Placeholder for figures
+\newcommand{\placeholder}[3]{
   \begin{center}
-    \fbox{%
-      \begin{minipage}[c][#2][c]{#1}
-        \centering\small\color{gray}
-        [Figure: #3]
-      \end{minipage}%
-    }%
-  \end{center}%
+    \fbox{\begin{minipage}[c][#2][c]{#1}
+      \centering\small\color{gray}[Figure: #3]
+    \end{minipage}}
+  \end{center}
 }
 
-% Highlight box for a key term
-\newcommand{\keyterm}[1]{%
-  \begin{tcolorbox}[hitbox, title=Key Concept]
-    #1
-  \end{tcolorbox}%
-}
-
-% Paper citation block: \papercite{Title}{Authors}{Venue, Year}
-\newcommand{\papercite}[3]{%
-  \begin{tcolorbox}[hitbox, title=Paper: #1]
-    \textbf{Authors:} #2\\
-    \textbf{Venue:} #3
-  \end{tcolorbox}%
-}
-
-% Alert / warning block
-\newcommand{\warningbox}[1]{%
-  \begin{tcolorbox}[alertbox, title=Warning]
-    #1
-  \end{tcolorbox}%
-}
-
-% Section intro frame (large centered text)
-\newcommand{\sectionframe}[2]{%
+% Section divider frame
+\newcommand{\sectionframe}[2]{
   \begin{frame}[plain]
-    \vfill
-    \centering
-    {\Large\bfseries\color{hitblue} #1}\\[0.5em]
-    {\normalsize\color{gray} #2}
-    \vfill
-  \end{frame}%
+    \begin{tikzpicture}[remember picture,overlay]
+      \fill[hitblue] (current page.south west) rectangle (current page.north east);
+      \node[anchor=center, white, font=\Large\bfseries] at (current page.center) {
+        \begin{tabular}{c}
+          #1 \\[0.3cm]
+          {\small\color{hitgold}#2}
+        \end{tabular}
+      };
+    \end{tikzpicture}
+  \end{frame}
 }
 
-% Load math macros
+% ─────────────────────────────────────────────────────────────────────────────
+% LOAD CUSTOM MACROS
+% ─────────────────────────────────────────────────────────────────────────────
 \input{../../shared/macros}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% TITLE & AUTHOR (can be overridden in individual lectures)
+% ─────────────────────────────────────────────────────────────────────────────
+\author[D. Lederman]{Dror Lederman}
+\institute{Holon Institute of Technology (HIT) \\ Data Science Department}
+\date{\today}
+
+% ─────────────────────────────────────────────────────────────────────────────
+% FOOTER & HEADER
+% ─────────────────────────────────────────────────────────────────────────────
+\setbeamertemplate{footline}{
+  \leavevmode%
+  \hbox{%
+    \begin{beamercolorbox}[wd=0.33\paperwidth,ht=2.25ex,dp=1ex,center]{author in head/foot}%
+      \usebeamerfont{author in head/foot}\insertshortauthor
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=0.34\paperwidth,ht=2.25ex,dp=1ex,center]{title in head/foot}%
+      \usebeamerfont{title in head/foot}\insertshorttitle
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=0.33\paperwidth,ht=2.25ex,dp=1ex,right]{frame number}%
+      \usebeamerfont{frame number}\insertframenumber{} / \inserttotalframenumber\hspace*{2ex}
+    \end{beamercolorbox}%
+  }%
+  \vskip0pt%
+}
+
+\endinput

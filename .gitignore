@@ -1,34 +1,49 @@
-# LaTeX build artefacts
+# LaTeX build artifacts
 *.aux
 *.log
 *.nav
 *.out
 *.snm
 *.toc
-*.bbl
-*.blg
+*.vrb
 *.fls
 *.fdb_latexmk
 *.synctex.gz
 *.synctex(busy)
-*.dvi
-*.ps
-*.vrb
-*.idx
-*.ilg
-*.ind
-*.lof
-*.lot
-*.lol
+*.bbl
+*.blg
 *.run.xml
-*-blx.bib
-_minted-*/
 
-# Compiled PDFs (comment out if you want to track PDFs)
+# Compiled PDF (keep source files only)
+# Note: Uncomment to exclude PDFs from version control
 # *.pdf
 
-# Editor temp files
+# Minted (syntax highlighting with shell escape)
+_minted-*/
+*.pyg
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
 *.swp
 *~
-.DS_Store
-Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Python (if using automation scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+venv/
+env/
+
+# Misc
+*.tmp
+.directory

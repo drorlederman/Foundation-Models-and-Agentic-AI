@@ -1,0 +1,892 @@
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{Madrid}
+\usecolortheme{default}
+
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+\title{Modern Foundation Models}
+\subtitle{Lecture 2: Transformer Architecture Details}
+\author{Dror Lederman}
+\institute{Holon Institute of Technology}
+\date{\today}
+
+\begin{document}
+
+%------------------------------------------------
+\begin{frame}
+\titlepage
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Lecture Roadmap}
+\begin{enumerate}
+    \item Recap: Self-Attention and Transformer Blocks
+    \item Position Embeddings
+    \item Layer Normalization
+    \item Attention Approximation
+    \item Transformer-Based Model Families
+    \item BERT and Encoder-Only Models
+\end{enumerate}
+\end{frame}
+
+%------------------------------------------------
+\section{Recap}
+
+\begin{frame}{Recap: Scaled Dot-Product Attention}
+
+The core attention operation is:
+
+\[
+\mathrm{Attention}(Q,K,V)
+=
+\mathrm{softmax}
+\left(
+\frac{QK^{T}}{\sqrt{d_k}}
+\right)V
+\]
+
+\vspace{0.4cm}
+
+\begin{itemize}
+    \item $Q$ = queries
+    \item $K$ = keys
+    \item $V$ = values
+    \item $d_k$ = key/query dimension
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Why Attention Matters}
+
+Self-attention allows each token to directly attend to other tokens.
+
+\vspace{0.4cm}
+
+Example:
+
+\begin{quote}
+The law will never be perfect, but its application should be just.
+\end{quote}
+
+\vspace{0.3cm}
+
+The token ``its'' may attend to:
+\begin{itemize}
+    \item ``law''
+    \item ``application''
+\end{itemize}
+
+\vspace{0.3cm}
+
+Attention can help model long-range dependencies.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Multi-Head Attention}
+
+Instead of using one attention mechanism, Transformers use multiple heads.
+
+\[
+\mathrm{MultiHead}(Q,K,V)
+=
+\mathrm{Concat}(\mathrm{head}_1,\ldots,\mathrm{head}_h)W^O
+\]
+
+\[
+\mathrm{head}_i =
+\mathrm{Attention}(QW_i^Q,KW_i^K,VW_i^V)
+\]
+
+\vspace{0.4cm}
+
+Different heads may capture different linguistic or semantic relations.
+
+\end{frame}
+
+%------------------------------------------------
+\section{Position Embeddings}
+
+\begin{frame}{Why Do We Need Position Information?}
+
+Self-attention is permutation-invariant.
+
+\vspace{0.3cm}
+
+Without position information:
+
+\[
+\text{``the dog bit the man''}
+\]
+
+and
+
+\[
+\text{``the man bit the dog''}
+\]
+
+may become too similar.
+
+\vspace{0.4cm}
+
+Transformers therefore need a way to represent token order.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Learned Position Embeddings}
+
+A simple approach:
+
+\[
+x_i = e_i + p_i
+\]
+
+where:
+
+\begin{itemize}
+    \item $e_i$ is the token embedding
+    \item $p_i$ is a learned position embedding
+\end{itemize}
+
+\vspace{0.4cm}
+
+Limitation:
+
+\begin{itemize}
+    \item Learned position embeddings may not extrapolate well to longer sequences.
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Sinusoidal Position Embeddings}
+
+The original Transformer used fixed sinusoidal encodings:
+
+\[
+PE_{m,2i}
+=
+\sin
+\left(
+\frac{m}{10000^{2i/d_{\text{model}}}}
+\right)
+\]
+
+\[
+PE_{m,2i+1}
+=
+\cos
+\left(
+\frac{m}{10000^{2i/d_{\text{model}}}}
+\right)
+\]
+
+\vspace{0.3cm}
+
+where:
+\begin{itemize}
+    \item $m$ is the position
+    \item $i$ is the embedding dimension index
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Why Sinusoids?}
+
+Using trigonometric identities:
+
+\[
+\cos(a-b)
+=
+\cos(a)\cos(b)
++
+\sin(a)\sin(b)
+\]
+
+\vspace{0.4cm}
+
+This means that the similarity between position embeddings can encode relative distance:
+
+\[
+\langle PE_m, PE_n \rangle = f(m-n)
+\]
+
+\vspace{0.4cm}
+
+So the model can reason about relative positions.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{From Absolute to Relative Position}
+
+For attention, what often matters is not the absolute position:
+
+\[
+m
+\]
+
+but the relative distance:
+
+\[
+m-n
+\]
+
+\vspace{0.4cm}
+
+Modern models often modify the attention mechanism directly to encode relative positions.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Position Bias in Attention}
+
+A relative position bias can be added to the attention score:
+
+\[
+\mathrm{softmax}
+\left(
+\frac{\langle q_m,k_n\rangle}{\sqrt{d_k}}
++
+\mathrm{bias}(m,n)
+\right)
+\]
+
+\vspace{0.4cm}
+
+Examples:
+
+\begin{itemize}
+    \item T5: learned relative position bias
+    \item ALiBi: deterministic linear bias
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{ALiBi: Attention with Linear Biases}
+
+ALiBi uses a simple distance-based bias:
+
+\[
+\mathrm{bias}(m,n) = \mu (n-m)
+\]
+
+\vspace{0.4cm}
+
+Main idea:
+
+\begin{itemize}
+    \item Encourage attention to nearby tokens.
+    \item Allow extrapolation to longer sequences.
+    \item Avoid explicit position embeddings.
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{RoPE: Rotary Position Embeddings}
+
+RoPE rotates query and key vectors according to their positions.
+
+For two dimensions:
+
+\[
+R_{\theta,m}
+=
+\begin{pmatrix}
+\cos(m\theta) & -\sin(m\theta) \\
+\sin(m\theta) & \cos(m\theta)
+\end{pmatrix}
+\]
+
+\vspace{0.4cm}
+
+Apply rotation to queries and keys:
+
+\[
+q_m \rightarrow q_m R_{\theta,m}
+\]
+
+\[
+k_n \rightarrow k_n R_{\theta,n}
+\]
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Why RoPE Works}
+
+After rotation, the attention score depends on relative distance:
+
+\[
+q_m k_n^T
+=
+x_m W_q R_{\theta,n-m} W_k^T x_n^T
+\]
+
+\vspace{0.4cm}
+
+Main advantage:
+
+\begin{itemize}
+    \item Relative position is naturally encoded.
+    \item Works well in modern decoder-only LLMs.
+    \item Common in Llama-style architectures.
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\section{Layer Normalization}
+
+\begin{frame}{Layer Normalization}
+
+Layer Normalization normalizes activations within a layer.
+
+\[
+\mathrm{LN}(x)
+=
+\gamma \hat{x} + \beta
+\]
+
+where:
+
+\[
+\hat{x}
+=
+\frac{x-\mu}{\sqrt{\sigma^2+\epsilon}}
+\]
+
+\[
+\mu = \frac{1}{d}\sum_{i=1}^{d}x_i
+\]
+
+\[
+\sigma^2 = \frac{1}{d}\sum_{i=1}^{d}(x_i-\mu)^2
+\]
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Why Layer Normalization?}
+
+Layer Normalization helps with:
+
+\begin{itemize}
+    \item Training stability
+    \item Faster convergence
+    \item Better gradient flow
+    \item Training very deep networks
+\end{itemize}
+
+\vspace{0.4cm}
+
+In Transformers, LayerNorm is used together with residual connections.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Post-Norm vs Pre-Norm}
+
+\textbf{Post-Norm:}
+
+\[
+x_{l+1}
+=
+\mathrm{LayerNorm}
+\left(
+x_l + \mathrm{SubLayer}(x_l)
+\right)
+\]
+
+\vspace{0.5cm}
+
+\textbf{Pre-Norm:}
+
+\[
+x_{l+1}
+=
+x_l + \mathrm{SubLayer}
+\left(
+\mathrm{LayerNorm}(x_l)
+\right)
+\]
+
+\vspace{0.4cm}
+
+Modern large models usually prefer Pre-Norm.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{RMSNorm}
+
+RMSNorm simplifies LayerNorm by normalizing using the root mean square:
+
+\[
+\mathrm{RMS}(x)
+=
+\sqrt{
+\frac{1}{d}
+\sum_{i=1}^{d}x_i^2
+}
+\]
+
+\[
+\mathrm{RMSNorm}(x)
+=
+\gamma
+\frac{x}{\mathrm{RMS}(x)}
+\]
+
+\vspace{0.4cm}
+
+Used in many modern LLMs.
+
+\end{frame}
+
+%------------------------------------------------
+\section{Attention Approximation}
+
+\begin{frame}{The Cost of Full Attention}
+
+Full self-attention has quadratic complexity:
+
+\[
+O(n^2)
+\]
+
+where $n$ is sequence length.
+
+\vspace{0.4cm}
+
+This becomes expensive for:
+
+\begin{itemize}
+    \item Long documents
+    \item Long conversations
+    \item Code repositories
+    \item Multimodal inputs
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Sparse Attention}
+
+Instead of allowing every token to attend to every other token:
+
+\[
+n \times n
+\]
+
+we restrict attention to selected patterns.
+
+\vspace{0.4cm}
+
+Examples:
+
+\begin{itemize}
+    \item Local attention
+    \item Sliding window attention
+    \item Global tokens
+    \item Longformer-style sparse attention
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Sliding Window Attention}
+
+In Sliding Window Attention, each token attends only to nearby tokens.
+
+\vspace{0.4cm}
+
+\[
+\mathrm{Attention}(i)
+=
+\{j : |i-j| \leq w\}
+\]
+
+\vspace{0.4cm}
+
+where $w$ is the window size.
+
+\vspace{0.4cm}
+
+This is similar to a receptive field in convolutional neural networks.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Local and Global Attention}
+
+Some models combine:
+
+\begin{itemize}
+    \item Local attention for nearby context
+    \item Global attention for special tokens
+\end{itemize}
+
+\vspace{0.4cm}
+
+This allows:
+
+\begin{itemize}
+    \item Better scalability
+    \item Long-document processing
+    \item Reduced memory cost
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Sharing Attention Heads}
+
+Standard Multi-Head Attention uses separate $Q,K,V$ for each head.
+
+\vspace{0.4cm}
+
+Modern models often share key/value heads:
+
+\begin{itemize}
+    \item MHA: Multi-Head Attention
+    \item MQA: Multi-Query Attention
+    \item GQA: Grouped-Query Attention
+\end{itemize}
+
+\vspace{0.4cm}
+
+This reduces inference memory and improves decoding speed.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{MHA, MQA, GQA}
+
+\begin{table}
+\centering
+\begin{tabular}{lll}
+\toprule
+Method & Key/Value Sharing & Typical Use \\
+\midrule
+MHA & No sharing & Original Transformer \\
+MQA & One KV pair for all heads & Fast inference \\
+GQA & KV shared by groups & Modern LLMs \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.4cm}
+
+GQA is a compromise between quality and efficiency.
+
+\end{frame}
+
+%------------------------------------------------
+\section{Transformer-Based Models}
+
+\begin{frame}{Three Families of Transformer Models}
+
+\begin{table}
+\centering
+\begin{tabular}{lll}
+\toprule
+Family & Main Use & Examples \\
+\midrule
+Encoder-Decoder & Text-to-text & T5, mT5, ByT5 \\
+Encoder-Only & Classification, understanding & BERT, RoBERTa \\
+Decoder-Only & Text generation & GPT, Llama \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Encoder-Decoder Models}
+
+Encoder-decoder models map input text to output text.
+
+\vspace{0.3cm}
+
+Examples:
+
+\begin{itemize}
+    \item Machine translation
+    \item Summarization
+    \item Question answering
+\end{itemize}
+
+\vspace{0.4cm}
+
+Representative models:
+
+\begin{itemize}
+    \item T5
+    \item mT5
+    \item ByT5
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Encoder-Only Models}
+
+Encoder-only models produce contextual representations.
+
+\vspace{0.4cm}
+
+Typical tasks:
+
+\begin{itemize}
+    \item Sentiment classification
+    \item Named entity recognition
+    \item Semantic similarity
+    \item Text classification
+\end{itemize}
+
+\vspace{0.4cm}
+
+Examples:
+
+\begin{itemize}
+    \item BERT
+    \item RoBERTa
+    \item DistilBERT
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Decoder-Only Models}
+
+Decoder-only models predict the next token.
+
+\[
+P(x_t \mid x_1,\ldots,x_{t-1})
+\]
+
+\vspace{0.4cm}
+
+Examples:
+
+\begin{itemize}
+    \item GPT family
+    \item Llama
+    \item Mistral
+    \item Qwen
+\end{itemize}
+
+\vspace{0.4cm}
+
+This architecture dominates modern generative LLMs.
+
+\end{frame}
+
+%------------------------------------------------
+\section{BERT}
+
+\begin{frame}{Why BERT?}
+
+\[
+\text{BERT}
+=
+\text{Bidirectional Encoder Representations from Transformers}
+\]
+
+\vspace{0.4cm}
+
+Key ideas:
+
+\begin{itemize}
+    \item Encoder-only Transformer
+    \item Bidirectional self-attention
+    \item Pretraining followed by fine-tuning
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{BERT is Bidirectional}
+
+Unlike decoder-only models, BERT can attend to both left and right context.
+
+\vspace{0.4cm}
+
+Example:
+
+\begin{quote}
+The student went to the bank to deposit money.
+\end{quote}
+
+\vspace{0.4cm}
+
+The meaning of ``bank'' depends on surrounding context.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{BERT Strategy}
+
+BERT uses a two-stage training process:
+
+\begin{enumerate}
+    \item Pretraining with proxy tasks
+    \item Fine-tuning on a downstream task
+\end{enumerate}
+
+\vspace{0.4cm}
+
+Pretraining tasks:
+
+\begin{itemize}
+    \item Masked Language Modeling (MLM)
+    \item Next Sentence Prediction (NSP)
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Masked Language Modeling}
+
+Input:
+
+\begin{quote}
+The capital of France is [MASK].
+\end{quote}
+
+\vspace{0.4cm}
+
+Target:
+
+\[
+\text{Paris}
+\]
+
+\vspace{0.4cm}
+
+The model learns to predict masked tokens using both left and right context.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{BERT Input Processing}
+
+BERT input includes:
+
+\begin{itemize}
+    \item WordPiece tokens
+    \item Special token \texttt{[CLS]}
+    \item Separator token \texttt{[SEP]}
+    \item Segment embeddings
+    \item Position embeddings
+\end{itemize}
+
+\vspace{0.4cm}
+
+Example:
+
+\[
+\texttt{[CLS] A cute teddy bear is reading . [SEP]}
+\]
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Fine-Tuning BERT}
+
+After pretraining, BERT can be fine-tuned for:
+
+\begin{itemize}
+    \item Classification
+    \item Question answering
+    \item Natural language inference
+    \item Token classification
+\end{itemize}
+
+\vspace{0.4cm}
+
+Often, only a small task-specific head is added.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{BERT: Pros and Cons}
+
+\begin{table}
+\centering
+\begin{tabular}{ll}
+\toprule
+Pros & Cons \\
+\midrule
+Strong language understanding & Not ideal for generation \\
+Needs less labeled data & Requires fine-tuning \\
+Bidirectional context & Less flexible than modern LLMs \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{BERT Variants}
+
+Important variants:
+
+\begin{itemize}
+    \item RoBERTa
+    \item DistilBERT
+    \item ALBERT
+\end{itemize}
+
+\vspace{0.4cm}
+
+These variants improve training efficiency, compression, or performance.
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Key Takeaways}
+
+\begin{itemize}
+    \item Position information is essential for Transformers.
+    \item RoPE is widely used in modern LLMs.
+    \item LayerNorm and RMSNorm stabilize deep Transformer training.
+    \item Sparse attention and KV sharing improve efficiency.
+    \item Transformer models come in encoder-decoder, encoder-only, and decoder-only families.
+    \item BERT is an encoder-only model focused on language understanding.
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Suggested Reading}
+
+\begin{itemize}
+    \item Vaswani et al. (2017), \textit{Attention Is All You Need}
+    \item Devlin et al. (2018), \textit{BERT: Pre-training of Deep Bidirectional Transformers}
+    \item Su et al. (2021), \textit{RoFormer: Enhanced Transformer with Rotary Position Embeddings}
+    \item Press et al. (2021), \textit{Train Short, Test Long: Attention with Linear Biases}
+    \item Xiong et al. (2020), \textit{On Layer Normalization in the Transformer Architecture}
+    \item Beltagy et al. (2020), \textit{Longformer}
+\end{itemize}
+
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}
+\centering
+\Huge Questions?
+\end{frame}
+
+\end{document}
